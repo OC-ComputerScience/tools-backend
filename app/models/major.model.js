@@ -1,21 +1,22 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const AssignedCourse = SequelizeInstance.define("assignedCourse", {
+const Major = SequelizeInstance.define("major", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
-  sectionId: {
-    type: Sequelize.INTEGER,
+  code: {
+    type: Sequelize.STRING,
     allowNull: false,
+    unique: true,
   },
-  assignedSectionId: {
-    type: Sequelize.INTEGER,
+  description: {
+    type: Sequelize.STRING,
     allowNull: false,
   },
 });
 
-export default AssignedCourse;
+export default Major;
 

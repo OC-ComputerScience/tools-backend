@@ -2,7 +2,7 @@ import db from "../models/index.js";
 import logger from "../config/logger.js";
 
 const MeetingTime = db.meetingTime;
-const Course = db.course;
+const Section = db.section;
 const Op = db.Sequelize.Op;
 const exports = {};
 
@@ -58,7 +58,7 @@ exports.findAll = (req, res) => {
 
   MeetingTime.findAll({
     where: condition,
-    include: [{ model: Course, as: "course" }],
+    include: [{ model: Section, as: "section" }],
     order: [["startTime", "ASC"]],
   })
     .then((data) => {
@@ -81,7 +81,7 @@ exports.findOne = (req, res) => {
   logger.debug(`Finding meeting time with id: ${id}`);
 
   MeetingTime.findByPk(id, {
-    include: [{ model: Course, as: "course" }],
+    include: [{ model: Section, as: "section" }],
   })
     .then((data) => {
       if (data) {
@@ -109,7 +109,7 @@ exports.findByCourseId = (req, res) => {
 
   MeetingTime.findAll({
     where: { courseId: courseId },
-    include: [{ model: Course, as: "course" }],
+    include: [{ model: Section, as: "section" }],
     order: [["startTime", "ASC"]],
   })
     .then((data) => {

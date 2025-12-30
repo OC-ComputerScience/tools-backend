@@ -1,7 +1,7 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Course = SequelizeInstance.define("course", {
+const Section = SequelizeInstance.define("section", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
@@ -29,5 +29,5 @@ const Course = SequelizeInstance.define("course", {
   },
 });
 
-export default Course;
+export default Section;
 
