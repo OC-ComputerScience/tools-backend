@@ -17,6 +17,7 @@ exports.create = (req, res) => {
 
   const term = {
     termName: req.body.termName,
+    startDate: req.body.startDate || null,
   };
 
   logger.debug(`Creating term: ${term.termName}`);
