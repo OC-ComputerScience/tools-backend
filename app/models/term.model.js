@@ -11,6 +11,10 @@ const Term = SequelizeInstance.define("term", {
     type: Sequelize.STRING,
     allowNull: false,
   },
+  startDate: {
+    type: Sequelize.DATEONLY,
+    allowNull: true,
+  },
 });
 
 export default Term;

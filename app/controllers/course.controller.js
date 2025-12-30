@@ -54,6 +54,7 @@ exports.findAll = (req, res) => {
 
   Course.findAll({ 
     where: condition,
+    order: [['courseNumber', 'ASC'], ['courseSection', 'ASC']],
     include: [
       { model: Term, as: "term" },
       { model: User, as: "user" }
@@ -93,6 +94,7 @@ exports.findByUserEmail = (req, res) => {
 
       Course.findAll({
         where: condition,
+        order: [['courseNumber', 'ASC'], ['courseSection', 'ASC']],
         include: [
           { model: Term, as: "term" },
           { model: User, as: "user" },
@@ -147,6 +149,7 @@ exports.findAllWithCount = (req, res) => {
 
   Course.findAll({
     where: condition,
+    order: [['courseNumber', 'ASC'], ['courseSection', 'ASC']],
     attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'termId', 'userId'],
     subQuery: false,
     include: [
