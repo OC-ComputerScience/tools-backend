@@ -8,6 +8,7 @@ import Session from "./session.model.js";
 import Term from "./term.model.js";
 import Course from "./course.model.js";
 import AssignedCourse from "./assignedCourse.model.js";
+import MeetingTime from "./meetingTime.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -18,6 +19,7 @@ db.session = Session;
 db.term = Term;
 db.course = Course;
 db.assignedCourse = AssignedCourse;
+db.meetingTime = MeetingTime;
 
 // Foreign key for session
 db.user.hasMany(
@@ -73,6 +75,17 @@ db.assignedCourse.belongsTo(
 db.assignedCourse.belongsTo(
   db.course,
   { as: "assignedCourse", foreignKey: "assignedCourseId" }
+);
+
+// Foreign key for meeting times
+db.course.hasMany(
+  db.meetingTime,
+  { as: "meetingTimes", foreignKey: "courseId" },
+  { onDelete: "CASCADE" }
+);
+db.meetingTime.belongsTo(
+  db.course,
+  { as: "course", foreignKey: "courseId" }
 );
 
 export default db;
