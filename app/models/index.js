@@ -12,6 +12,10 @@ import AssignedCourse from "./assignedCourse.model.js";
 import MeetingTime from "./meetingTime.model.js";
 import Major from "./major.model.js";
 import SemesterPlan from "./semesterPlan.model.js";
+import Role from "./role.model.js";
+import UserRole from "./userRole.model.js";
+import MenuOption from "./menuOption.model.js";
+import RoleMenuOption from "./roleMenuOption.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -26,6 +30,10 @@ db.assignedCourse = AssignedCourse;
 db.meetingTime = MeetingTime;
 db.major = Major;
 db.semesterPlan = SemesterPlan;
+db.role = Role;
+db.userRole = UserRole;
+db.menuOption = MenuOption;
+db.roleMenuOption = RoleMenuOption;
 
 // Foreign key for session
 db.user.hasMany(
@@ -80,6 +88,38 @@ db.semesterPlan.belongsTo(
   db.course,
   { as: "course", foreignKey: "courseId" }
 );
+
+// Many-to-many relationship between User and Role
+db.user.belongsToMany(db.role, {
+  through: db.userRole,
+  as: "roles",
+  foreignKey: "userId",
+  otherKey: "roleId",
+  onDelete: "CASCADE",
+});
+db.role.belongsToMany(db.user, {
+  through: db.userRole,
+  as: "users",
+  foreignKey: "roleId",
+  otherKey: "userId",
+  onDelete: "CASCADE",
+});
+
+// Many-to-many relationship between Role and MenuOption
+db.role.belongsToMany(db.menuOption, {
+  through: db.roleMenuOption,
+  as: "menuOptions",
+  foreignKey: "roleId",
+  otherKey: "menuOptionId",
+  onDelete: "CASCADE",
+});
+db.menuOption.belongsToMany(db.role, {
+  through: db.roleMenuOption,
+  as: "roles",
+  foreignKey: "menuOptionId",
+  otherKey: "roleId",
+  onDelete: "CASCADE",
+});
 
 export default db;
 

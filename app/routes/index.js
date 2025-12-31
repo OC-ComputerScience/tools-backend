@@ -9,6 +9,8 @@ import AssignedCourseRoutes from "./assignedCourse.routes.js";
 import MeetingTimeRoutes from "./meetingTime.routes.js";
 import MajorRoutes from "./major.routes.js";
 import SemesterPlanRoutes from "./semesterPlan.routes.js";
+import RoleRoutes from "./role.routes.js";
+import MenuOptionRoutes from "./menuOption.routes.js";
 
 const router = Router();
 
@@ -21,6 +23,8 @@ router.use("/assignedCourses", AssignedCourseRoutes);
 router.use("/meetingTimes", MeetingTimeRoutes);
 router.use("/majors", MajorRoutes);
 router.use("/semesterPlans", SemesterPlanRoutes);
+router.use("/roles", RoleRoutes);
+router.use("/menuOptions", MenuOptionRoutes);
 
 export default router;
 

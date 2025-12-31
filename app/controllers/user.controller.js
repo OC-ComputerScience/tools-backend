@@ -2,6 +2,8 @@ import db  from "../models/index.js";
 import logger from "../config/logger.js";
 
 const User = db.user;
+const Role = db.role;
+const UserRole = db.userRole;
 const Op = db.Sequelize.Op;
 const exports = {};
 
@@ -9,7 +11,16 @@ const exports = {};
 exports.findAll = (req, res) => {
   logger.debug('Fetching all users');
 
-  User.findAll()
+  User.findAll({
+    include: [
+      {
+        model: Role,
+        as: "roles",
+        attributes: ["id", "name", "description"],
+        through: { attributes: [] }, // Exclude join table attributes
+      },
+    ],
+  })
     .then((data) => {
       logger.info(`Retrieved ${data.length} users`);
       res.send(data);
@@ -28,7 +39,16 @@ exports.findOne = (req, res) => {
 
   logger.debug(`Finding user with id: ${id}`);
 
-  User.findByPk(id)
+  User.findByPk(id, {
+    include: [
+      {
+        model: Role,
+        as: "roles",
+        attributes: ["id", "name", "description"],
+        through: { attributes: [] }, // Exclude join table attributes
+      },
+    ],
+  })
     .then((data) => {
       if (data) {
         logger.info(`User found: ${id}`);
@@ -49,33 +69,66 @@ exports.findOne = (req, res) => {
 };
 
 // Update a User by the id in the request
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
   const id = req.params.id;
 
   logger.debug(`Updating user ${id} with data: ${JSON.stringify(req.body)}`);
 
-  User.update(req.body, {
-    where: { id: id },
-  })
-    .then((num) => {
-      if (num == 1) {
-        logger.info(`User ${id} updated successfully`);
-        res.send({
-          message: "User was updated successfully.",
-        });
-      } else {
-        logger.warn(`Failed to update user ${id} - not found or empty body`);
-        res.send({
-          message: `Cannot update User with id=${id}. Maybe User was not found or req.body is empty!`,
+  try {
+    // Extract roleIds and roles from request body if present (roles is the populated array, we only want roleIds)
+    const { roleIds, roles, ...userData } = req.body;
+
+    // Update user fields (excluding roleIds)
+    const [num] = await User.update(userData, {
+      where: { id: id },
+    });
+
+    if (num !== 1) {
+      logger.warn(`Failed to update user ${id} - not found or empty body`);
+      return res.send({
+        message: `Cannot update User with id=${id}. Maybe User was not found or req.body is empty!`,
+      });
+    }
+
+    // If roleIds are provided, update the user's roles
+    if (roleIds !== undefined && Array.isArray(roleIds)) {
+      const user = await User.findByPk(id);
+      if (!user) {
+        return res.status(404).send({
+          message: `Cannot find User with id=${id}.`,
         });
       }
-    })
-    .catch((err) => {
-      logger.error(`Error updating user ${id}: ${err.message}`);
-      res.status(500).send({
-        message: "Error updating User with id=" + id,
+
+      // Set roles using the roleIds array
+      // Sequelize will automatically handle adding/removing associations
+      const roles = await Role.findAll({
+        where: { id: { [Op.in]: roleIds } },
       });
+      await user.setRoles(roles);
+
+      logger.info(`User ${id} roles updated: ${roleIds.join(", ")}`);
+    }
+
+    // Fetch updated user with roles
+    const updatedUser = await User.findByPk(id, {
+      include: [
+        {
+          model: Role,
+          as: "roles",
+          attributes: ["id", "name", "description"],
+          through: { attributes: [] },
+        },
+      ],
     });
+
+    logger.info(`User ${id} updated successfully`);
+    res.send(updatedUser);
+  } catch (err) {
+    logger.error(`Error updating user ${id}: ${err.message}`);
+    res.status(500).send({
+      message: "Error updating User with id=" + id,
+    });
+  }
 };
 
 export default exports;

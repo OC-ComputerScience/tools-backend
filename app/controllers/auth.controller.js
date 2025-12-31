@@ -7,6 +7,7 @@ import logger from "../config/logger.js";
 
 const User = db.user;
 const Session = db.session;
+const Role = db.role;
 const Op = db.Sequelize.Op;
 
 let googleUser = {};
@@ -66,6 +67,14 @@ exports.login = async (req, res) => {
     where: {
       email: email,
     },
+    include: [
+      {
+        model: Role,
+        as: "roles",
+        attributes: ["id", "name", "description"],
+        through: { attributes: [] }, // Exclude join table attributes
+      },
+    ],
   })
     .then((data) => {
       if (data != null) {
@@ -152,13 +161,27 @@ exports.login = async (req, res) => {
             });
           session = {};
         } else {
+          // Fetch user with roles for the session
+          const userWithRoles = await User.findByPk(user.id, {
+            include: [
+              {
+                model: Role,
+                as: "roles",
+                attributes: ["id", "name", "description"],
+                through: { attributes: [] },
+              },
+            ],
+          });
+          
           let userInfo = {
-            email: user.email,
-            fName: user.fName,
-            lName: user.lName,
-            userId: user.id,
-            isAdmin: user.isAdmin,
+            email: userWithRoles.email,
+            fName: userWithRoles.fName,
+            lName: userWithRoles.lName,
+            userId: userWithRoles.id,
+            id: userWithRoles.id,
+            isAdmin: userWithRoles.isAdmin,
             token: session.token,
+            roles: userWithRoles.roles || [],
           };
           logger.info(`Valid session found for ${email}, reusing existing session`);
           res.send(userInfo);
@@ -192,14 +215,28 @@ exports.login = async (req, res) => {
     logger.debug(`Session created with expiration: ${tempExpirationDate}`);
 
     await Session.create(newSession)
-      .then(() => {
+      .then(async () => {
+        // Fetch user with roles
+        const userWithRoles = await User.findByPk(user.id, {
+          include: [
+            {
+              model: Role,
+              as: "roles",
+              attributes: ["id", "name", "description"],
+              through: { attributes: [] },
+            },
+          ],
+        });
+        
         let userInfo = {
-          email: user.email,
-          fName: user.fName,
-          lName: user.lName,
-          userId: user.id,
-          isAdmin: user.isAdmin,
+          email: userWithRoles.email,
+          fName: userWithRoles.fName,
+          lName: userWithRoles.lName,
+          userId: userWithRoles.id,
+          id: userWithRoles.id,
+          isAdmin: userWithRoles.isAdmin,
           token: token,
+          roles: userWithRoles.roles || [],
         };
         logger.info(`Login successful for user: ${user.email}`);
         res.send(userInfo);
