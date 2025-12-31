@@ -7,7 +7,7 @@ const MeetingTime = SequelizeInstance.define("meetingTime", {
     autoIncrement: true,
     primaryKey: true,
   },
-  courseId: {
+  sectionId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },

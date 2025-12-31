@@ -2,22 +2,22 @@ import db from "../models/index.js";
 import logger from "../config/logger.js";
 
 const MeetingTime = db.meetingTime;
-const Course = db.course;
+const Section = db.section;
 const Op = db.Sequelize.Op;
 const exports = {};
 
 // Create and Save a new MeetingTime
 exports.create = (req, res) => {
-  if (!req.body.courseId || !req.body.startTime || !req.body.endTime) {
+  if (!req.body.sectionId || !req.body.startTime || !req.body.endTime) {
     logger.warn("MeetingTime creation attempt with missing required fields");
     res.status(400).send({
-      message: "Course ID, start time, and end time are required!",
+      message: "Section ID, start time, and end time are required!",
     });
     return;
   }
 
   const meetingTime = {
-    courseId: req.body.courseId,
+    sectionId: req.body.sectionId,
     monday: req.body.monday || false,
     tuesday: req.body.tuesday || false,
     wednesday: req.body.wednesday || false,
@@ -29,7 +29,7 @@ exports.create = (req, res) => {
     endTime: req.body.endTime,
   };
 
-  logger.debug(`Creating meeting time for course: ${meetingTime.courseId}`);
+  logger.debug(`Creating meeting time for section: ${meetingTime.sectionId}`);
 
   MeetingTime.create(meetingTime)
     .then((data) => {
@@ -48,9 +48,9 @@ exports.create = (req, res) => {
 
 // Retrieve all MeetingTimes from the database
 exports.findAll = (req, res) => {
-  const courseId = req.query.courseId;
+  const sectionId = req.query.sectionId;
 
-  let condition = courseId ? { courseId: courseId } : {};
+  let condition = sectionId ? { sectionId: sectionId } : {};
 
   logger.debug(
     `Fetching meeting times with condition: ${JSON.stringify(condition)}`
@@ -58,7 +58,7 @@ exports.findAll = (req, res) => {
 
   MeetingTime.findAll({
     where: condition,
-    include: [{ model: Course, as: "course" }],
+    include: [{ model: Section, as: "section" }],
     order: [["startTime", "ASC"]],
   })
     .then((data) => {
@@ -81,7 +81,7 @@ exports.findOne = (req, res) => {
   logger.debug(`Finding meeting time with id: ${id}`);
 
   MeetingTime.findByPk(id, {
-    include: [{ model: Course, as: "course" }],
+    include: [{ model: Section, as: "section" }],
   })
     .then((data) => {
       if (data) {
@@ -102,26 +102,26 @@ exports.findOne = (req, res) => {
     });
 };
 
-// Find all meeting times for a specific course
-exports.findByCourseId = (req, res) => {
-  const courseId = req.params.courseId;
-  logger.debug(`Finding meeting times for courseId: ${courseId}`);
+// Find all meeting times for a specific section
+exports.findBySectionId = (req, res) => {
+  const sectionId = req.params.sectionId;
+  logger.debug(`Finding meeting times for sectionId: ${sectionId}`);
 
   MeetingTime.findAll({
-    where: { courseId: courseId },
-    include: [{ model: Course, as: "course" }],
+    where: { sectionId: sectionId },
+    include: [{ model: Section, as: "section" }],
     order: [["startTime", "ASC"]],
   })
     .then((data) => {
-      logger.info(`Retrieved ${data.length} meeting times for course: ${courseId}`);
+      logger.info(`Retrieved ${data.length} meeting times for section: ${sectionId}`);
       res.send(data);
     })
     .catch((err) => {
       logger.error(
-        `Error retrieving meeting times for course ${courseId}: ${err.message}`
+        `Error retrieving meeting times for section ${sectionId}: ${err.message}`
       );
       res.status(500).send({
-        message: "Error retrieving MeetingTimes for course=" + courseId,
+        message: "Error retrieving MeetingTimes for section=" + sectionId,
       });
     });
 };
@@ -190,38 +190,38 @@ exports.delete = (req, res) => {
     });
 };
 
-// Delete all meeting times for a specific course
-exports.deleteByCourseId = (req, res) => {
-  const courseId = req.params.courseId;
+// Delete all meeting times for a specific section
+exports.deleteBySectionId = (req, res) => {
+  const sectionId = req.params.sectionId;
 
-  logger.debug(`Attempting to delete meeting times for courseId: ${courseId}`);
+  logger.debug(`Attempting to delete meeting times for sectionId: ${sectionId}`);
 
   MeetingTime.destroy({
-    where: { courseId: courseId },
+    where: { sectionId: sectionId },
   })
     .then((num) => {
       if (num >= 1) {
         logger.info(
-          `MeetingTime(s) deleted successfully for course: ${courseId}`
+          `MeetingTime(s) deleted successfully for section: ${sectionId}`
         );
         res.send({
           message: "MeetingTime(s) were deleted successfully!",
         });
       } else {
         logger.warn(
-          `Cannot delete meeting times for courseId ${courseId} - not found`
+          `Cannot delete meeting times for sectionId ${sectionId} - not found`
         );
         res.send({
-          message: `Cannot delete MeetingTimes for courseId=${courseId}. Maybe MeetingTimes were not found!`,
+          message: `Cannot delete MeetingTimes for sectionId=${sectionId}. Maybe MeetingTimes were not found!`,
         });
       }
     })
     .catch((err) => {
       logger.error(
-        `Error deleting meeting times for courseId ${courseId}: ${err.message}`
+        `Error deleting meeting times for sectionId ${sectionId}: ${err.message}`
       );
       res.status(500).send({
-        message: "Could not delete MeetingTimes for courseId=" + courseId,
+        message: "Could not delete MeetingTimes for sectionId=" + sectionId,
       });
     });
 };

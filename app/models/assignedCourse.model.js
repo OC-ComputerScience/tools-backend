@@ -7,11 +7,11 @@ const AssignedCourse = SequelizeInstance.define("assignedCourse", {
     autoIncrement: true,
     primaryKey: true,
   },
-  courseId: {
+  sectionId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
-  assignedCourseId: {
+  assignedSectionId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
