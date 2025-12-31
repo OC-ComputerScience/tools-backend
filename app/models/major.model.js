@@ -1,7 +1,7 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Course = SequelizeInstance.define("course", {
+const Major = SequelizeInstance.define("major", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
@@ -10,10 +10,7 @@ const Course = SequelizeInstance.define("course", {
   code: {
     type: Sequelize.STRING,
     allowNull: false,
-  },
-  number: {
-    type: Sequelize.STRING,
-    allowNull: false,
+    unique: true,
   },
   description: {
     type: Sequelize.STRING,
@@ -21,4 +18,4 @@ const Course = SequelizeInstance.define("course", {
   },
 });
 
-export default Course;
+export default Major;

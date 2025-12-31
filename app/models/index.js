@@ -7,8 +7,11 @@ import User from "./user.model.js";
 import Session from "./session.model.js";
 import Term from "./term.model.js";
 import Course from "./course.model.js";
+import Section from "./section.model.js";
 import AssignedCourse from "./assignedCourse.model.js";
 import MeetingTime from "./meetingTime.model.js";
+import Major from "./major.model.js";
+import SemesterPlan from "./semesterPlan.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -18,8 +21,11 @@ db.user = User;
 db.session = Session;
 db.term = Term;
 db.course = Course;
+db.section = Section;
 db.assignedCourse = AssignedCourse;
 db.meetingTime = MeetingTime;
+db.major = Major;
+db.semesterPlan = SemesterPlan;
 
 // Foreign key for session
 db.user.hasMany(
@@ -33,57 +39,44 @@ db.session.belongsTo(
   { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
 );
 
-// Foreign key for courses
-db.user.hasMany(
-  db.course,
-  { as: "course" },
-  { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
-);
-db.course.belongsTo(
-  db.user,
-  { as: "user" },
-  { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
-);
+// Note: Course model is a master catalog table (code, number, description)
+// It does not have relationships with users, terms, assignedCourses, or meetingTimes
+// Those relationships are handled by the Section model
 
-// Foreign key for terms
-db.term.hasMany(
-  db.course,
-  { as: "course" },
-  { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
-);
-db.course.belongsTo(
-  db.term,
-  { as: "term" },
-  { foreignKey: { allowNull: false }, onDelete: "CASCADE" }
-);
+// Foreign key relationships for Section
+db.user.hasMany(db.section, { as: "sections", foreignKey: "userId", onDelete: "CASCADE" });
+db.section.belongsTo(db.user, { as: "user", foreignKey: "userId" });
 
-// Foreign key for assigned courses
-db.course.hasMany(
-  db.assignedCourse,
-  { as: "assignedCourse", foreignKey: "courseId" },
+db.term.hasMany(db.section, { as: "sections", foreignKey: "termId", onDelete: "CASCADE" });
+db.section.belongsTo(db.term, { as: "term", foreignKey: "termId" });
+
+// Section relationships with AssignedCourse
+db.section.hasMany(db.assignedCourse, { as: "assignedSections", foreignKey: "sectionId", onDelete: "CASCADE" });
+db.section.hasMany(db.assignedCourse, { as: "assignedToSections", foreignKey: "assignedSectionId", onDelete: "CASCADE" });
+db.assignedCourse.belongsTo(db.section, { as: "section", foreignKey: "sectionId" });
+db.assignedCourse.belongsTo(db.section, { as: "assignedSection", foreignKey: "assignedSectionId" });
+
+// Section relationships with MeetingTime
+db.section.hasMany(db.meetingTime, { as: "meetingTimes", foreignKey: "sectionId", onDelete: "CASCADE" });
+db.meetingTime.belongsTo(db.section, { as: "section", foreignKey: "sectionId" });
+
+// Foreign key relationships for SemesterPlan
+db.major.hasMany(
+  db.semesterPlan,
+  { as: "semesterPlans", foreignKey: "majorId" },
   { onDelete: "CASCADE" }
 );
-db.course.hasMany(
-  db.assignedCourse,
-  { as: "assignedToCourse", foreignKey: "assignedCourseId" },
-  { onDelete: "CASCADE" }
-);
-db.assignedCourse.belongsTo(
-  db.course,
-  { as: "course", foreignKey: "courseId" }
-);
-db.assignedCourse.belongsTo(
-  db.course,
-  { as: "assignedCourse", foreignKey: "assignedCourseId" }
+db.semesterPlan.belongsTo(
+  db.major,
+  { as: "major", foreignKey: "majorId" }
 );
 
-// Foreign key for meeting times
 db.course.hasMany(
-  db.meetingTime,
-  { as: "meetingTimes", foreignKey: "courseId" },
+  db.semesterPlan,
+  { as: "semesterPlans", foreignKey: "courseId" },
   { onDelete: "CASCADE" }
 );
-db.meetingTime.belongsTo(
+db.semesterPlan.belongsTo(
   db.course,
   { as: "course", foreignKey: "courseId" }
 );

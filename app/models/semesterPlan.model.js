@@ -1,24 +1,25 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Course = SequelizeInstance.define("course", {
+const SemesterPlan = SequelizeInstance.define("semesterPlan", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
-  code: {
-    type: Sequelize.STRING,
+  majorId: {
+    type: Sequelize.INTEGER,
     allowNull: false,
   },
-  number: {
-    type: Sequelize.STRING,
+  semesterNumber: {
+    type: Sequelize.INTEGER,
     allowNull: false,
   },
-  description: {
-    type: Sequelize.STRING,
+  courseId: {
+    type: Sequelize.INTEGER,
     allowNull: false,
   },
 });
 
-export default Course;
+export default SemesterPlan;
+
