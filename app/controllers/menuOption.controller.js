@@ -7,7 +7,7 @@ const Op = db.Sequelize.Op;
 const exports = {};
 
 // Create and Save a new MenuOption
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
   if (!req.body.option || !req.body.routeName) {
     logger.warn("MenuOption creation attempt with missing required fields");
     res.status(400).send({
@@ -16,24 +16,49 @@ exports.create = (req, res) => {
     return;
   }
 
-  const menuOption = {
-    option: req.body.option,
-    routeName: req.body.routeName,
-  };
+  try {
+    // Extract roleIds from request body if present
+    const { roleIds, roles, ...menuOptionData } = req.body;
 
-  logger.debug(`Creating menuOption: ${menuOption.option}`);
+    const menuOption = {
+      option: menuOptionData.option,
+      routeName: menuOptionData.routeName,
+    };
 
-  MenuOption.create(menuOption)
-    .then((data) => {
-      logger.info(`MenuOption created successfully: ${data.id} - ${data.option}`);
-      res.send(data);
-    })
-    .catch((err) => {
-      logger.error(`Error creating menuOption: ${err.message}`);
-      res.status(500).send({
-        message: err.message || "Some error occurred while creating the MenuOption.",
+    logger.debug(`Creating menuOption: ${menuOption.option}`);
+
+    // Create the menu option
+    const createdMenuOption = await MenuOption.create(menuOption);
+    logger.info(`MenuOption created successfully: ${createdMenuOption.id} - ${createdMenuOption.option}`);
+
+    // If roleIds are provided, assign roles to the newly created menu option
+    if (roleIds !== undefined && Array.isArray(roleIds) && roleIds.length > 0) {
+      const roleObjects = await Role.findAll({
+        where: { id: { [Op.in]: roleIds } },
       });
+      await createdMenuOption.setRoles(roleObjects);
+      logger.info(`MenuOption ${createdMenuOption.id} roles assigned: ${roleIds.join(", ")}`);
+    }
+
+    // Fetch the created menu option with roles included
+    const menuOptionWithRoles = await MenuOption.findByPk(createdMenuOption.id, {
+      include: [
+        {
+          model: Role,
+          as: "roles",
+          attributes: ["id", "name", "description"],
+          through: { attributes: [] },
+        },
+      ],
     });
+
+    res.send(menuOptionWithRoles);
+  } catch (err) {
+    logger.error(`Error creating menuOption: ${err.message}`);
+    res.status(500).send({
+      message: err.message || "Some error occurred while creating the MenuOption.",
+    });
+  }
 };
 
 // Retrieve all MenuOptions from the database
