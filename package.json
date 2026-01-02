@@ -8,7 +8,7 @@
     "test": "jest --",
     "start": "node server.js",
     "bundle": "mkdir deploy && cp -r app server.js package.json package-lock.json courseimport-backend.service .env deploy",
-    "winbundle": "md deploy && xcopy app deploy\\app /s /h /i /y /e  && copy .env deploy"
+    "winbundle": "md deploy && xcopy app deploy\\app /s /h /i /y /e && copy server.js deploy && copy *.json deploy && copy .env deploy",
   },
   "keywords": [
     "node.js",
