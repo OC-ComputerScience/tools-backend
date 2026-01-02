@@ -27,6 +27,10 @@ const Section = SequelizeInstance.define("section", {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
+  accountId: {
+    type: Sequelize.STRING,
+    allowNull: true,
+  },
 });
 
 export default Section;

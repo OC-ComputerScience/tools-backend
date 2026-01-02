@@ -18,7 +18,6 @@ jobs:
       CLIENT_ID: ${{secrets.CLIENT_ID}}
       CLIENT_SECRET: ${{secrets.CLIENT_SECRET}}
 
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,14 +27,13 @@ jobs:
           node-version: "20.11.0"
 
       - run: |
-          
+
           echo DB_HOST=${{env.DB_HOST}} > .env
           echo DB_PW=${{env.DB_PW}} >> .env
           echo DB_USER=${{env.DB_USER}} >> .env
           echo DB_NAME=${{env.DB_NAME}} >> .env
           echo CLIENT_ID=${{env.CLIENT_ID}} >> .env
           echo CLIENT_SECRET=${{env.CLIENT_SECRET}} >> .env
-
 
       - run: npm run winbundle
 
@@ -45,7 +43,7 @@ jobs:
           local: deploy/
           remote: c:/nodeapps/tools-backend
           recursive: true
-          host: "toolsdev.oc.edu"
+          host: "flightplandev.oc.edu"
           username: "david.north"
           privateKey: ${{ secrets.DEV_WIN_SERVER_SSH_KEY  }}
           password: ${{ secrets.PASSWORD }}
@@ -54,6 +52,6 @@ jobs:
         uses: garygrossgarten/github-action-ssh@release
         with:
           command: '.\deploy-tools-backend'
-          host: "toolsdev.oc.edu"
+          host: "flightplandev.oc.edu"
           username: "david.north"
           privateKey: ${{ secrets.DEV_WIN_SERVER_SSH_KEY  }}
