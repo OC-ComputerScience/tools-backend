@@ -11,6 +11,12 @@ import MajorRoutes from "./major.routes.js";
 import SemesterPlanRoutes from "./semesterPlan.routes.js";
 import RoleRoutes from "./role.routes.js";
 import MenuOptionRoutes from "./menuOption.routes.js";
+const universityRoutes = require('./university.routes');
+const ocCourseRoutes = require('./ocCourse.routes');
+const universityCourseRoutes = require('./universityCourse.routes');
+const universityTranscriptRoutes = require('./universityTranscript.routes');
+const transcriptCourseRoutes = require('./transcriptCourse.routes');
+const catalogRoutes = require('./catalog.routes');
 
 const router = Router();
 
@@ -25,6 +31,29 @@ router.use("/majors", MajorRoutes);
 router.use("/semesterPlans", SemesterPlanRoutes);
 router.use("/roles", RoleRoutes);
 router.use("/menuOptions", MenuOptionRoutes);
+// University routes
+router.use('/universities', universityRoutes);
+
+// OC Course routes
+router.use('/oc-courses', ocCourseRoutes);
+
+// University Course routes
+router.use('/university-courses', universityCourseRoutes);
+
+// University Transcript routes
+router.use('/university-transcripts', universityTranscriptRoutes);
+
+// Transcript Course routes
+router.use('/transcript-courses', transcriptCourseRoutes);
+
+// Catalog routes
+router.use('/catalog', catalogRoutes);
+
+// Semester routes
+router.use('/semester', semesterRoutes);
+
+// Upload routes
+router.use('/transcript', transcriptRoutes);
 
 export default router;
 

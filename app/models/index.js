@@ -34,6 +34,13 @@ db.role = Role;
 db.userRole = UserRole;
 db.menuOption = MenuOption;
 db.roleMenuOption = RoleMenuOption;
+db.University = require('./university.model.js')(sequelize, Sequelize);
+db.OCCourse = require('./ocCourse.model.js')(sequelize, Sequelize);
+db.UniversityCourse = require('./universityCourse.model.js')(sequelize, Sequelize);
+db.UniversityTranscript = require('./universityTranscript.model.js')(sequelize, Sequelize);
+db.TranscriptCourse = require('./transcriptCourse.model.js')(sequelize, Sequelize);
+db.Semester = require('./semester.model.js')(sequelize, Sequelize);
+db.Catalog = require('./catalog.model.js')(sequelize, Sequelize);
 
 // Foreign key for session
 db.user.hasMany(
@@ -120,6 +127,34 @@ db.menuOption.belongsToMany(db.role, {
   otherKey: "roleId",
   onDelete: "CASCADE",
 });
+// Define relationships
+db.University.hasMany(db.UniversityCourse, { foreignKey: 'universityId' });
+db.University.hasMany(db.UniversityTranscript, { foreignKey: 'universityId' });
+
+db.OCCourse.hasMany(db.UniversityCourse, { foreignKey: 'OCCourseId' });
+db.OCCourse.hasMany(db.TranscriptCourse, { foreignKey: 'OCCourseId' });
+
+db.TranscriptCourse.belongsTo(db.UniversityTranscript, { foreignKey: 'universityTranscriptId' });
+db.TranscriptCourse.belongsTo(db.UniversityCourse, { foreignKey: 'universityCourseId' });
+db.TranscriptCourse.belongsTo(db.OCCourse, { foreignKey: 'OCCourseId' });
+db.TranscriptCourse.belongsTo(db.Semester, { foreignKey: 'semesterId' });
+
+db.UniversityCourse.belongsTo(db.University, { foreignKey: 'universityId' });
+db.UniversityCourse.belongsTo(db.OCCourse, { foreignKey: 'OCCourseId' });
+db.UniversityCourse.hasMany(db.TranscriptCourse, { foreignKey: 'universityCourseId' });
+
+db.UniversityTranscript.hasMany(db.TranscriptCourse, { foreignKey: 'universityTranscriptId' })
+db.UniversityTranscript.belongsTo(db.University, { foreignKey: 'universityId' });
+
+// Catalog relationships
+db.Catalog.belongsTo(db.Semester, { foreignKey: 'startSemesterId', as: 'startSemester' });
+db.Catalog.belongsTo(db.Semester, { foreignKey: 'endSemesterId', as: 'endSemester' });
+
+// Semester relationships
+db.Semester.hasMany(db.TranscriptCourse, { foreignKey: 'semesterId' });
+db.Semester.hasMany(db.Catalog, { foreignKey: 'startSemesterId', as: 'startCatalogs' });
+db.Semester.hasMany(db.Catalog, { foreignKey: 'endSemesterId', as: 'endCatalogs' });
+
 
 export default db;
 
