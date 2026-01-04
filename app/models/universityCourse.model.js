@@ -1,13 +1,13 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Section = SequelizeInstance.define("section", {
+const UniversityCourse = SequelizeInstance.define("universityCourse", {
   id: {
     type: Sequelize.INTEGER,
-    autoIncrement: true,
     primaryKey: true,
+    autoIncrement: true,
   },
-  semesterId: {
+  universityId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
@@ -15,22 +15,26 @@ const Section = SequelizeInstance.define("section", {
     type: Sequelize.STRING,
     allowNull: false,
   },
-  courseSection: {
+  courseName: {
     type: Sequelize.STRING,
     allowNull: false,
   },
   courseDescription: {
     type: Sequelize.STRING,
-    allowNull: true,
+    allowNull: false,
   },
-  userId: {
+  courseHours: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
-  accountId: {
-    type: Sequelize.STRING,
+  courseId: {
+    type: Sequelize.INTEGER,
     allowNull: true,
   },
+}, {
+  timestamps: true,
+  tableName: "university_courses",
 });
 
-export default Section;
+export default UniversityCourse;
+

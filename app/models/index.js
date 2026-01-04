@@ -5,7 +5,6 @@ import sequelize from "../config/sequelizeInstance.js";
 // Models
 import User from "./user.model.js";
 import Session from "./session.model.js";
-import Term from "./term.model.js";
 import Course from "./course.model.js";
 import Section from "./section.model.js";
 import AssignedCourse from "./assignedCourse.model.js";
@@ -16,6 +15,12 @@ import Role from "./role.model.js";
 import UserRole from "./userRole.model.js";
 import MenuOption from "./menuOption.model.js";
 import RoleMenuOption from "./roleMenuOption.model.js";
+import University from "./university.model.js";
+import UniversityCourse from "./universityCourse.model.js";
+import UniversityTranscript from "./universityTranscript.model.js";
+import TranscriptCourse from "./transcriptCourse.model.js";
+import Semester from "./semester.model.js";
+import Catalog from "./catalog.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -23,7 +28,6 @@ db.sequelize = sequelize;
 
 db.user = User;
 db.session = Session;
-db.term = Term;
 db.course = Course;
 db.section = Section;
 db.assignedCourse = AssignedCourse;
@@ -34,6 +38,12 @@ db.role = Role;
 db.userRole = UserRole;
 db.menuOption = MenuOption;
 db.roleMenuOption = RoleMenuOption;
+db.University = University;
+db.UniversityCourse = UniversityCourse;
+db.UniversityTranscript = UniversityTranscript;
+db.TranscriptCourse = TranscriptCourse;
+db.Semester = Semester;
+db.Catalog = Catalog;
 
 // Foreign key for session
 db.user.hasMany(
@@ -48,15 +58,15 @@ db.session.belongsTo(
 );
 
 // Note: Course model is a master catalog table (code, number, description)
-// It does not have relationships with users, terms, assignedCourses, or meetingTimes
+// It does not have relationships with users, semesters, assignedCourses, or meetingTimes
 // Those relationships are handled by the Section model
 
 // Foreign key relationships for Section
 db.user.hasMany(db.section, { as: "sections", foreignKey: "userId", onDelete: "CASCADE" });
 db.section.belongsTo(db.user, { as: "user", foreignKey: "userId" });
 
-db.term.hasMany(db.section, { as: "sections", foreignKey: "termId", onDelete: "CASCADE" });
-db.section.belongsTo(db.term, { as: "term", foreignKey: "termId" });
+db.Semester.hasMany(db.section, { as: "sections", foreignKey: "semesterId", onDelete: "CASCADE" });
+db.section.belongsTo(db.Semester, { as: "semester", foreignKey: "semesterId" });
 
 // Section relationships with AssignedCourse
 db.section.hasMany(db.assignedCourse, { as: "assignedSections", foreignKey: "sectionId", onDelete: "CASCADE" });
@@ -120,6 +130,36 @@ db.menuOption.belongsToMany(db.role, {
   otherKey: "roleId",
   onDelete: "CASCADE",
 });
+// Define relationships
+db.University.hasMany(db.UniversityCourse, { foreignKey: 'universityId' });
+db.University.hasMany(db.UniversityTranscript, { foreignKey: 'universityId' });
+
+db.course.hasMany(db.TranscriptCourse, { foreignKey: 'courseId', as: 'transcriptCourses' });
+
+db.TranscriptCourse.belongsTo(db.UniversityTranscript, { foreignKey: 'universityTranscriptId' });
+db.TranscriptCourse.belongsTo(db.UniversityCourse, { foreignKey: 'universityCourseId' });
+db.TranscriptCourse.belongsTo(db.course, { foreignKey: 'courseId', as: 'course' });
+db.TranscriptCourse.belongsTo(db.Semester, { foreignKey: 'semesterId' });
+
+db.UniversityCourse.belongsTo(db.University, { foreignKey: 'universityId' });
+db.UniversityCourse.belongsTo(db.course, { foreignKey: 'courseId', as: 'course' });
+db.UniversityCourse.hasMany(db.TranscriptCourse, { foreignKey: 'universityCourseId' });
+
+// Course (master catalog) has many UniversityCourses
+db.course.hasMany(db.UniversityCourse, { foreignKey: 'courseId', as: 'universityCourses' });
+
+db.UniversityTranscript.hasMany(db.TranscriptCourse, { foreignKey: 'universityTranscriptId' })
+db.UniversityTranscript.belongsTo(db.University, { foreignKey: 'universityId' });
+
+// Catalog relationships
+db.Catalog.belongsTo(db.Semester, { foreignKey: 'startSemesterId', as: 'startSemester' });
+db.Catalog.belongsTo(db.Semester, { foreignKey: 'endSemesterId', as: 'endSemester' });
+
+// Semester relationships
+db.Semester.hasMany(db.TranscriptCourse, { foreignKey: 'semesterId' });
+db.Semester.hasMany(db.Catalog, { foreignKey: 'startSemesterId', as: 'startCatalogs' });
+db.Semester.hasMany(db.Catalog, { foreignKey: 'endSemesterId', as: 'endCatalogs' });
+
 
 export default db;
 

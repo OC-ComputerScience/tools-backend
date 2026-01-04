@@ -23,3 +23,6 @@ const SemesterPlan = SequelizeInstance.define("semesterPlan", {
 
 export default SemesterPlan;
 
+
+
+

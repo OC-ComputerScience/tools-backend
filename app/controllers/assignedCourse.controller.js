@@ -3,7 +3,7 @@ import logger from "../config/logger.js";
 
 const AssignedCourse = db.assignedCourse;
 const Section = db.section;
-const Term = db.term;
+const Semester = db.Semester;
 const Op = db.Sequelize.Op;
 const exports = {};
 
@@ -71,12 +71,12 @@ exports.findAll = (req, res) => {
         { 
           model: Section, 
           as: "section",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'termId', 'userId']
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId', 'userId']
         },
         { 
           model: Section, 
           as: "assignedSection",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'termId', 'userId']
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId', 'userId']
         }
       ],
       distinct: true
@@ -135,12 +135,12 @@ exports.findBySectionId = (req, res) => {
       { 
         model: Section, 
         as: "section",
-        include: [{ model: Term, as: "term" }]
+        include: [{ model: Semester, as: "semester" }]
       },
       { 
         model: Section, 
         as: "assignedSection",
-        include: [{ model: Term, as: "term" }]
+        include: [{ model: Semester, as: "semester" }]
       }
     ]
   })

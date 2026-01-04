@@ -19,3 +19,6 @@ const RoleMenuOption = SequelizeInstance.define("roleMenuOption", {
 
 export default RoleMenuOption;
 
+
+
+
