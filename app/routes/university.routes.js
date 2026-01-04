@@ -1,24 +1,22 @@
-module.exports = (app) => {
-  
-    const universityController = require('../controllers/university.controller');
-    const { authenticate } = require("../authorization/authorization.js");
-    var router = require("express").Router();
+import { Router } from "express";
+import universityController from "../controllers/university.controller.js";
+import authenticate from "../authorization/authorization.js";
+
+const router = Router();
 
 // Create a new University
-router.post('/', [authenticate], universityController.create);
+router.post("/", [authenticate], universityController.create);
 
 // Get all Universities
-router.get('/', [authenticate], universityController.findAll);
+router.get("/", [authenticate], universityController.findAll);
 
 // Get a single University by id
-router.get('/:id', [authenticate], universityController.findOne);
+router.get("/:id", [authenticate], universityController.findOne);
 
 // Update a University
-router.put('/:id', [authenticate], universityController.update);
+router.put("/:id", [authenticate], universityController.update);
 
 // Delete a University
-router.delete('/:id', [authenticate], universityController.delete);
+router.delete("/:id", [authenticate], universityController.delete);
 
-app.use("/transcript/universities", router);
-module.exports = router;
-}
+export default router;

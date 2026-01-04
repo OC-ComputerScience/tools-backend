@@ -20,3 +20,6 @@ const Role = SequelizeInstance.define("role", {
 
 export default Role;
 
+
+
+

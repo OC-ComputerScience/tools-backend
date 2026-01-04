@@ -7,7 +7,7 @@ const Section = SequelizeInstance.define("section", {
     autoIncrement: true,
     primaryKey: true,
   },
-  termId: {
+  semesterId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },

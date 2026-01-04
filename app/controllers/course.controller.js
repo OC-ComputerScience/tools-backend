@@ -19,6 +19,7 @@ exports.create = (req, res) => {
     code: req.body.code,
     number: req.body.number,
     description: req.body.description,
+    hours: req.body.hours || null,
   };
 
   logger.debug(`Creating course: ${course.code} ${course.number}`);

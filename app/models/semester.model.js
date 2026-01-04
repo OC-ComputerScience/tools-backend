@@ -1,18 +1,23 @@
-module.exports = (sequelize, Sequelize) => {
-  const Semester = sequelize.define("semester", {
-    name: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    startDate: {
-      type: Sequelize.DATE,
-      allowNull: false,
-    },
-    endDate: {
-      type: Sequelize.DATE,
-      allowNull: false,
-    },
-  });
+import Sequelize from "sequelize";
+import SequelizeInstance from "../config/sequelizeInstance.js";
 
-  return Semester;
-}; 
+const Semester = SequelizeInstance.define("semester", {
+  name: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  startDate: {
+    type: Sequelize.DATE,
+    allowNull: false,
+  },
+  endDate: {
+    type: Sequelize.DATE,
+    allowNull: false,
+  },
+});
+
+export default Semester;
+
+
+
+

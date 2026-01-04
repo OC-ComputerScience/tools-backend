@@ -2,9 +2,14 @@ import routes from "./app/routes/index.js";
 import express, { json, urlencoded } from "express"
 import cors from "cors";
 import morgan from "morgan";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 import db  from "./app/models/index.js";
 import logger from "./app/config/logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Database sync moved to after app initialization (below)
 
@@ -24,6 +29,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from data/transcripts directory
+app.use("/tools/data/transcripts", express.static(join(__dirname, "data/transcripts")));
   
 // Load the routes from the routes folder
 app.use("/tools", routes); 
@@ -58,6 +66,60 @@ if (process.env.NODE_ENV !== "test") {
         }
         // For other errors, log but don't fail
         logger.warn("Could not add accountId column:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add hours column to courses table if it doesn't exist
+      // Get the actual table name from the model (handles pluralization)
+      const courseTableName = db.course.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${courseTableName}
+        ADD COLUMN hours INT NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("hours column already exists, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add hours column:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add courseId column to university_courses table if it doesn't exist
+      // Get the actual table name from the model (handles pluralization)
+      const universityCourseTableName = db.UniversityCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${universityCourseTableName}
+        ADD COLUMN courseId INT NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("courseId column already exists, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("University courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add courseId column:", err.message);
         return Promise.resolve();
       });
     })

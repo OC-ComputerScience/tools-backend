@@ -1,47 +1,52 @@
-'use strict';
-const { Model } = require('sequelize');
+import Sequelize, { Model } from "sequelize";
+import SequelizeInstance from "../config/sequelizeInstance.js";
 
-module.exports = (sequelize, DataTypes) => {
-  class Catalog extends Model {
-    static associate(models) {
-      // Define associations here
-      Catalog.belongsTo(models.Semester, {
-        foreignKey: 'startSemesterId',
-        as: 'startSemester'
-      });
-      Catalog.belongsTo(models.Semester, {
-        foreignKey: 'endSemesterId',
-        as: 'endSemester'
-      });
-    }
+class Catalog extends Model {
+  static associate(models) {
+    // Define associations here
+    Catalog.belongsTo(models.Semester, {
+      foreignKey: "startSemesterId",
+      as: "startSemester",
+    });
+    Catalog.belongsTo(models.Semester, {
+      foreignKey: "endSemesterId",
+      as: "endSemester",
+    });
   }
-  
-  Catalog.init({
+}
+
+Catalog.init(
+  {
     name: {
-      type: DataTypes.STRING,
-      allowNull: false
+      type: Sequelize.STRING,
+      allowNull: false,
     },
     startSemesterId: {
-      type: DataTypes.INTEGER,
+      type: Sequelize.INTEGER,
       allowNull: false,
       references: {
-        model: 'semesters',
-        key: 'id'
-      }
+        model: "semesters",
+        key: "id",
+      },
     },
     endSemesterId: {
-      type: DataTypes.INTEGER,
+      type: Sequelize.INTEGER,
       allowNull: false,
       references: {
-        model: 'semesters',
-        key: 'id'
-      }
-    }
-  }, {
-    sequelize,
-    modelName: 'Catalog',
-    tableName: 'catalogs'
-  });
-  
-  return Catalog;
-}; 
+        model: "semesters",
+        key: "id",
+      },
+    },
+  },
+  {
+    sequelize: SequelizeInstance,
+    modelName: "Catalog",
+    tableName: "catalogs",
+  }
+);
+
+export default Catalog;
+
+
+
+

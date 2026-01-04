@@ -1,88 +1,114 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const ocrService = require('../services/ocrService');
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import ocrService from "../services/ocrService.js";
+import logger from "../config/logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const backendRoot = path.resolve(__dirname, "../..");
+const transcriptsDir = join(backendRoot, "data/transcripts");
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = 'data/transcripts';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(transcriptsDir)) {
+      fs.mkdirSync(transcriptsDir, { recursive: true });
     }
-    cb(null, dir);
+    cb(null, transcriptsDir);
   },
   filename: function (req, file, cb) {
     // Get transcriptId from URL params
     const transcriptId = req.params.transcriptId;
-    console.log('Transcript ID from params:', transcriptId);
-    
+    logger.debug(`Transcript ID from params: ${transcriptId}`);
+
     if (!transcriptId) {
-      return cb(new Error('Transcript ID is required'));
+      return cb(new Error("Transcript ID is required"));
     }
-    
+
     cb(null, `transcript-${transcriptId}.pdf`);
-  }
+  },
 });
 
 // Create multer upload instance
 const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
-    if (file.mimetype !== 'application/pdf') {
-      return cb(new Error('Only PDF files are allowed'));
+    if (file.mimetype !== "application/pdf") {
+      return cb(new Error("Only PDF files are allowed"));
     }
     cb(null, true);
-  }
-}).single('file');
+  },
+}).single("file");
+
+const exports = {};
 
 // Handle file upload
 exports.uploadFile = (req, res) => {
+  const transcriptId = req.params.transcriptId;
+  logger.debug(`Uploading file for transcript: ${transcriptId}`);
+  
   upload(req, res, function (err) {
     if (err instanceof multer.MulterError) {
+      logger.error(`Multer error uploading file for transcript ${transcriptId}: ${err.message}`);
       return res.status(400).json({ message: err.message });
     } else if (err) {
+      logger.error(`Error uploading file for transcript ${transcriptId}: ${err.message}`);
       return res.status(500).json({ message: err.message });
     }
 
     // Log the request body after multer processes it
-    console.log('Request body after upload:', req.body);
-    console.log('Uploaded file:', req.file);
+    logger.debug(`Request body after upload: ${JSON.stringify(req.body)}`);
+    logger.debug(`Uploaded file: ${req.file ? req.file.filename : 'none'}`);
 
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      logger.warn(`No file uploaded for transcript: ${transcriptId}`);
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
-    res.status(200).json({ 
-      message: 'File uploaded successfully',
+    logger.info(`File uploaded successfully for transcript ${transcriptId}: ${req.file.filename}`);
+    res.status(200).json({
+      message: "File uploaded successfully",
       filename: req.file.filename,
-      transcriptId: req.params.transcriptId
+      transcriptId: transcriptId,
     });
   });
 };
 
 exports.processOCR = async (req, res) => {
+  const id = req.params.transcriptId;
   try {
-    const id = req.params.transcriptId;
+    logger.debug(`Processing OCR for transcript: ${id}`);
+    
     if (!id) {
-      return res.status(400).json({ message: 'Transcript ID is required' });
+      logger.warn("OCR processing attempt without transcript ID");
+      return res.status(400).json({ message: "Transcript ID is required" });
     }
 
     // Find the transcript file
-    const filePath = path.join('data/transcripts', `transcript-${id}.pdf`);
-    
+    const filePath = join(transcriptsDir, `transcript-${id}.pdf`);
+
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'No transcript file found' });
+      logger.warn(`Transcript file not found: ${filePath}`);
+      return res.status(404).json({ message: "No transcript file found" });
     }
 
     // Read the file
+    logger.debug(`Reading transcript file: ${filePath}`);
     const fileBuffer = fs.readFileSync(filePath);
 
     // Process with OCR
+    logger.debug(`Extracting transcript info from PDF for transcript: ${id}`);
     const ocrResults = await ocrService.extractTranscriptInfo(fileBuffer);
+    logger.info(`OCR processing completed successfully for transcript: ${id}`);
     res.json(ocrResults);
   } catch (error) {
-    console.error('Error processing OCR:', error);
+    logger.error(`Error processing OCR for transcript ${id}: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
     res.status(500).json({ message: error.message });
   }
 };
+
+export default exports;

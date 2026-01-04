@@ -1,13 +1,21 @@
-module.exports = (app) => {
-  const transcriptController = require('../controllers/transcript.controller');
-  var router = require("express").Router();
-  const { authenticate } = require("../authorization/authorization.js");
+import { Router } from "express";
+import transcriptController from "../controllers/transcript.controller.js";
+import authenticate from "../authorization/authorization.js";
 
-  // upload transcript
-  router.post('/upload/:transcriptId', [authenticate], transcriptController.uploadFile);
-  
-  // ocr transcript
-  router.get('/ocr/:transcriptId', [authenticate], transcriptController.processOCR);
+const router = Router();
 
-  app.use("/transcript/transcript", router);
-}; 
+// Upload transcript
+router.post(
+  "/upload/:transcriptId",
+  [authenticate],
+  transcriptController.uploadFile
+);
+
+// OCR transcript
+router.get(
+  "/ocr/:transcriptId",
+  [authenticate],
+  transcriptController.processOCR
+);
+
+export default router;

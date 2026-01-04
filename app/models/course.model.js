@@ -19,6 +19,10 @@ const Course = SequelizeInstance.define("course", {
     type: Sequelize.STRING,
     allowNull: false,
   },
+  hours: {
+    type: Sequelize.INTEGER,
+    allowNull: true,
+  },
 });
 
 export default Course;

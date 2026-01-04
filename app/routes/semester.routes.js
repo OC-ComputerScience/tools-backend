@@ -1,21 +1,21 @@
-module.exports = (app) => {
-  const semesters = require("../controllers/semester.controller.js");
-  const router = require("express").Router();
+import { Router } from "express";
+import semesterController from "../controllers/semester.controller.js";
 
-  // Create a new Semester
-  router.post("/", semesters.create);
+const router = Router();
 
-  // Retrieve all Semesters
-  router.get("/", semesters.findAll);
+// Create a new Semester
+router.post("/", semesterController.create);
 
-  // Retrieve a single Semester with id
-  router.get("/:id", semesters.findOne);
+// Retrieve all Semesters
+router.get("/", semesterController.findAll);
 
-  // Update a Semester with id
-  router.put("/:id", semesters.update);
+// Retrieve a single Semester with id
+router.get("/:id", semesterController.findOne);
 
-  // Delete a Semester with id
-  router.delete("/:id", semesters.delete);
+// Update a Semester with id
+router.put("/:id", semesterController.update);
 
-  app.use("/transcript/semesters", router);
-}; 
+// Delete a Semester with id
+router.delete("/:id", semesterController.delete);
+
+export default router;

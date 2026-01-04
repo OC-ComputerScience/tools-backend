@@ -20,3 +20,6 @@ router.delete("/:id", [authenticate], semesterPlans.delete);
 
 export default router;
 
+
+
+

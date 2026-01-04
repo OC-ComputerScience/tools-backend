@@ -1,11 +1,49 @@
-const pdf = require('pdf-parse');
-const { createWorker } = require('tesseract.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const fs = require('fs');
-const path = require('path');
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
+import { createWorker } from "tesseract.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import fs from "fs";
+import path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import { createRequire } from "module";
+
+// Use createRequire to load pdf-parse
+// Note: pdf-parse versions may export differently
+// Try requiring it and accessing the function correctly
+const require = createRequire(import.meta.url);
+
+// Try requiring pdf-parse - it should export a function directly in older versions
+// But newer versions export an object with PDFParse class
+let pdfParseModule;
+try {
+  pdfParseModule = require("pdf-parse");
+} catch (e) {
+  console.error('Error requiring pdf-parse:', e);
+  throw e;
+}
+
+// Check if it's a function directly (older versions)
+let pdfParse;
+if (typeof pdfParseModule === 'function') {
+  pdfParse = pdfParseModule;
+} else if (pdfParseModule && typeof pdfParseModule.default === 'function') {
+  pdfParse = pdfParseModule.default;
+} else {
+  // If it's an object, try to find the function
+  // Some versions wrap it - try common patterns
+  console.error('pdf-parse module structure:', {
+    type: typeof pdfParseModule,
+    keys: Object.keys(pdfParseModule || {}),
+    hasDefault: 'default' in (pdfParseModule || {}),
+    PDFParseType: typeof pdfParseModule?.PDFParse
+  });
+  throw new Error('pdf-parse did not export a function. Module type: ' + typeof pdfParseModule + '. Please check pdf-parse version and documentation.');
+}
+
+const execPromise = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class OCRService {
   constructor() {
@@ -13,31 +51,37 @@ class OCRService {
     // Note: Make sure GEMINI_API_KEY is set in your .env file
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.warn('WARNING: GEMINI_API_KEY is not set. Transcript parsing will fail.');
+      console.warn(
+        "WARNING: GEMINI_API_KEY is not set. Transcript parsing will fail."
+      );
     } else {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+      this.model = this.genAI.getGenerativeModel({
+        model: "gemini-2.5-flash-lite",
+      });
     }
   }
 
   async extractTextFromPDF(pdfBuffer) {
     try {
-      const data = await pdf(pdfBuffer);
+      const data = await pdfParse(pdfBuffer);
       return data.text;
     } catch (error) {
-      console.error('Error extracting text from PDF:', error);
+      console.error("Error extracting text from PDF:", error);
       throw error;
     }
   }
 
   async performOCR(imageBuffer) {
-    const worker = await createWorker('eng');
+    const worker = await createWorker("eng");
     try {
-      const { data: { text } } = await worker.recognize(imageBuffer);
+      const {
+        data: { text },
+      } = await worker.recognize(imageBuffer);
       await worker.terminate();
       return text;
     } catch (error) {
-      console.error('Error performing OCR:', error);
+      console.error("Error performing OCR:", error);
       throw error;
     }
   }
@@ -51,16 +95,18 @@ class OCRService {
 
       // Use sips to convert PDF to PNG (macOS only) with high resolution
       // -Z 3000 sets the maximum dimension to 3000 pixels, ensuring good quality for OCR
-      await execPromise(`sips -s format png --resampleHeightWidthMax 3000 "${tempPdfPath}" --out "${tempPngPath}"`);
+      await execPromise(
+        `sips -s format png --resampleHeightWidthMax 3000 "${tempPdfPath}" --out "${tempPngPath}"`
+      );
 
       if (fs.existsSync(tempPngPath)) {
         const imageBuffer = fs.readFileSync(tempPngPath);
         return imageBuffer;
       } else {
-        throw new Error('Image conversion failed: Output file not created');
+        throw new Error("Image conversion failed: Output file not created");
       }
     } catch (error) {
-      console.error('Error converting PDF to image:', error);
+      console.error("Error converting PDF to image:", error);
       throw error;
     } finally {
       // Cleanup
@@ -76,37 +122,41 @@ class OCRService {
       let ocrText = null;
 
       // Check for bad extraction (heuristic: average line length)
-      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      const lines = text.split("\n").filter((l) => l.trim().length > 0);
       const avgLineLength = lines.length > 0 ? text.length / lines.length : 0;
-      console.log('Average line length:', avgLineLength);
+      console.log("Average line length:", avgLineLength);
 
       if (!text || text.trim().length === 0 || avgLineLength < 10) {
-        console.log('Text extraction quality poor. Falling back to OCR...');
+        console.log("Text extraction quality poor. Falling back to OCR...");
         try {
           const imageBuffer = await this.convertPdfToImage(pdfBuffer);
           ocrText = await this.performOCR(imageBuffer);
-          console.log('OCR Text length:', ocrText.length);
+          console.log("OCR Text length:", ocrText.length);
         } catch (ocrError) {
-          console.error('OCR fallback failed:', ocrError);
+          console.error("OCR fallback failed:", ocrError);
           // Continue with original text if OCR fails
         }
       }
 
       if ((!text || text.trim().length === 0) && !ocrText) {
-        throw new Error('No text extracted from PDF. The file might be an image-only PDF.');
+        throw new Error(
+          "No text extracted from PDF. The file might be an image-only PDF."
+        );
       }
 
       // Parse the extracted text using LLM
       return await this.parseWithLLM(text, ocrText);
     } catch (error) {
-      console.error('Error extracting transcript info:', error);
+      console.error("Error extracting transcript info:", error);
       throw error;
     }
   }
 
   async parseWithLLM(text, ocrText = null) {
     if (!this.model) {
-      throw new Error('Gemini API is not initialized. Please check your GEMINI_API_KEY.');
+      throw new Error(
+        "Gemini API is not initialized. Please check your GEMINI_API_KEY."
+      );
     }
 
     let promptText = `Raw Text:\n${text}`;
@@ -170,11 +220,14 @@ class OCRService {
       const response = await result.response;
       const textResponse = response.text();
 
-      console.log('Gemini Response:', textResponse);
+      console.log("Gemini Response:", textResponse);
 
       // Clean up the response to ensure it's valid JSON
       // Sometimes models wrap JSON in markdown code blocks like \`\`\`json ... \`\`\`
-      let jsonStr = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+      let jsonStr = textResponse
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
 
       const parsedData = JSON.parse(jsonStr);
 
@@ -187,7 +240,7 @@ class OCRService {
       if (parsedData.courses && Array.isArray(parsedData.courses)) {
         const uniqueCourses = {};
 
-        parsedData.courses.forEach(course => {
+        parsedData.courses.forEach((course) => {
           const key = course.courseNumber;
           if (!uniqueCourses[key]) {
             uniqueCourses[key] = course;
@@ -239,14 +292,20 @@ class OCRService {
         // 2. If the same course number exists with a VALID semester, drop the null one.
         // 3. If the null one is the ONLY one, keep it.
 
-        const coursesWithSemester = parsedData.courses.filter(c => c.semester);
-        const coursesWithoutSemester = parsedData.courses.filter(c => !c.semester);
+        const coursesWithSemester = parsedData.courses.filter(
+          (c) => c.semester
+        );
+        const coursesWithoutSemester = parsedData.courses.filter(
+          (c) => !c.semester
+        );
 
         const keptCourses = [...coursesWithSemester];
 
-        coursesWithoutSemester.forEach(nullCourse => {
+        coursesWithoutSemester.forEach((nullCourse) => {
           // Check if this course number already exists in the "with semester" list
-          const exists = coursesWithSemester.some(c => c.courseNumber === nullCourse.courseNumber);
+          const exists = coursesWithSemester.some(
+            (c) => c.courseNumber === nullCourse.courseNumber
+          );
           if (!exists) {
             keptCourses.push(nullCourse);
           }
@@ -255,24 +314,24 @@ class OCRService {
         parsedData.courses = keptCourses;
 
         // Post-processing: Normalize semesters
-        parsedData.courses.forEach(course => {
+        parsedData.courses.forEach((course) => {
           if (course.semester) {
             // Fix OCR error: D0xx -> 20xx
-            course.semester = course.semester.replace(/D0(\d{2})/g, '20$1');
+            course.semester = course.semester.replace(/D0(\d{2})/g, "20$1");
 
             // Fix other common OCR errors if needed
             // e.g. "202S" -> "2025"
-            course.semester = course.semester.replace(/202S/g, '2025');
+            course.semester = course.semester.replace(/202S/g, "2025");
           }
         });
       }
 
       return parsedData;
     } catch (error) {
-      console.error('Error parsing with LLM:', error);
-      throw new Error('Failed to parse transcript with LLM: ' + error.message);
+      console.error("Error parsing with LLM:", error);
+      throw new Error("Failed to parse transcript with LLM: " + error.message);
     }
   }
 }
 
-module.exports = new OCRService();
+export default new OCRService();

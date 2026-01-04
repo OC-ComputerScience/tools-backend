@@ -1,49 +1,61 @@
-const { Catalog, Semester } = require('../models');
+import db from "../models/index.js";
+import logger from "../config/logger.js";
+
+const Catalog = db.Catalog;
+const Semester = db.Semester;
+
+const exports = {};
 
 // Get all catalogs with their associated semesters
 exports.getAll = async (req, res) => {
   try {
+    logger.debug("Fetching all catalogs");
     const catalogs = await Catalog.findAll({
       include: [
         {
           model: Semester,
-          as: 'startSemester'
+          as: "startSemester",
         },
         {
           model: Semester,
-          as: 'endSemester'
-        }
-      ]
+          as: "endSemester",
+        },
+      ],
     });
+    logger.info(`Retrieved ${catalogs.length} catalogs`);
     res.json(catalogs);
   } catch (error) {
-    console.error('Error fetching catalogs:', error);
-    res.status(500).json({ message: 'Error fetching catalogs' });
+    logger.error(`Error fetching catalogs: ${error.message}`);
+    res.status(500).json({ message: "Error fetching catalogs" });
   }
 };
 
 // Get a single catalog by ID
 exports.getById = async (req, res) => {
+  const id = req.params.id;
   try {
-    const catalog = await Catalog.findByPk(req.params.id, {
+    logger.debug(`Finding catalog with id: ${id}`);
+    const catalog = await Catalog.findByPk(id, {
       include: [
         {
           model: Semester,
-          as: 'startSemester'
+          as: "startSemester",
         },
         {
           model: Semester,
-          as: 'endSemester'
-        }
-      ]
+          as: "endSemester",
+        },
+      ],
     });
     if (!catalog) {
-      return res.status(404).json({ message: 'Catalog not found' });
+      logger.warn(`Catalog not found with id: ${id}`);
+      return res.status(404).json({ message: "Catalog not found" });
     }
+    logger.info(`Catalog found: ${id}`);
     res.json(catalog);
   } catch (error) {
-    console.error('Error fetching catalog:', error);
-    res.status(500).json({ message: 'Error fetching catalog' });
+    logger.error(`Error fetching catalog ${id}: ${error.message}`);
+    res.status(500).json({ message: "Error fetching catalog" });
   }
 };
 
@@ -51,21 +63,29 @@ exports.getById = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const { name, startSemesterId, endSemesterId } = req.body;
-    
+
+    if (!name || !startSemesterId || !endSemesterId) {
+      logger.warn("Catalog creation attempt with missing required fields");
+      return res.status(400).json({ message: "Name, start semester ID, and end semester ID are required" });
+    }
+
+    logger.debug(`Creating catalog: ${name}`);
+
     // Validate that both semesters exist
     const [startSemester, endSemester] = await Promise.all([
       Semester.findByPk(startSemesterId),
-      Semester.findByPk(endSemesterId)
+      Semester.findByPk(endSemesterId),
     ]);
 
     if (!startSemester || !endSemester) {
-      return res.status(400).json({ message: 'Invalid semester IDs' });
+      logger.warn(`Invalid semester IDs: startSemesterId=${startSemesterId}, endSemesterId=${endSemesterId}`);
+      return res.status(400).json({ message: "Invalid semester IDs" });
     }
 
     const catalog = await Catalog.create({
       name,
       startSemesterId,
-      endSemesterId
+      endSemesterId,
     });
 
     // Fetch the created catalog with its associations
@@ -73,46 +93,51 @@ exports.create = async (req, res) => {
       include: [
         {
           model: Semester,
-          as: 'startSemester'
+          as: "startSemester",
         },
         {
           model: Semester,
-          as: 'endSemester'
-        }
-      ]
+          as: "endSemester",
+        },
+      ],
     });
 
+    logger.info(`Catalog created successfully: ${catalog.id} - ${name}`);
     res.status(201).json(createdCatalog);
   } catch (error) {
-    console.error('Error creating catalog:', error);
-    res.status(500).json({ message: 'Error creating catalog' });
+    logger.error(`Error creating catalog: ${error.message}`);
+    res.status(500).json({ message: "Error creating catalog" });
   }
 };
 
 // Update a catalog
 exports.update = async (req, res) => {
+  const id = req.params.id;
   try {
+    logger.debug(`Updating catalog ${id} with data: ${JSON.stringify(req.body)}`);
     const { name, startSemesterId, endSemesterId } = req.body;
-    const catalog = await Catalog.findByPk(req.params.id);
+    const catalog = await Catalog.findByPk(id);
 
     if (!catalog) {
-      return res.status(404).json({ message: 'Catalog not found' });
+      logger.warn(`Catalog not found with id: ${id}`);
+      return res.status(404).json({ message: "Catalog not found" });
     }
 
     // Validate that both semesters exist
     const [startSemester, endSemester] = await Promise.all([
       Semester.findByPk(startSemesterId),
-      Semester.findByPk(endSemesterId)
+      Semester.findByPk(endSemesterId),
     ]);
 
     if (!startSemester || !endSemester) {
-      return res.status(400).json({ message: 'Invalid semester IDs' });
+      logger.warn(`Invalid semester IDs for catalog ${id}: startSemesterId=${startSemesterId}, endSemesterId=${endSemesterId}`);
+      return res.status(400).json({ message: "Invalid semester IDs" });
     }
 
     await catalog.update({
       name,
       startSemesterId,
-      endSemesterId
+      endSemesterId,
     });
 
     // Fetch the updated catalog with its associations
@@ -120,33 +145,40 @@ exports.update = async (req, res) => {
       include: [
         {
           model: Semester,
-          as: 'startSemester'
+          as: "startSemester",
         },
         {
           model: Semester,
-          as: 'endSemester'
-        }
-      ]
+          as: "endSemester",
+        },
+      ],
     });
 
+    logger.info(`Catalog ${id} updated successfully`);
     res.json(updatedCatalog);
   } catch (error) {
-    console.error('Error updating catalog:', error);
-    res.status(500).json({ message: 'Error updating catalog' });
+    logger.error(`Error updating catalog ${id}: ${error.message}`);
+    res.status(500).json({ message: "Error updating catalog" });
   }
 };
 
 // Delete a catalog
 exports.delete = async (req, res) => {
+  const id = req.params.id;
   try {
-    const catalog = await Catalog.findByPk(req.params.id);
+    logger.debug(`Attempting to delete catalog: ${id}`);
+    const catalog = await Catalog.findByPk(id);
     if (!catalog) {
-      return res.status(404).json({ message: 'Catalog not found' });
+      logger.warn(`Catalog not found with id: ${id}`);
+      return res.status(404).json({ message: "Catalog not found" });
     }
     await catalog.destroy();
-    res.json({ message: 'Catalog deleted successfully' });
+    logger.info(`Catalog ${id} deleted successfully`);
+    res.json({ message: "Catalog deleted successfully" });
   } catch (error) {
-    console.error('Error deleting catalog:', error);
-    res.status(500).json({ message: 'Error deleting catalog' });
+    logger.error(`Error deleting catalog ${id}: ${error.message}`);
+    res.status(500).json({ message: "Error deleting catalog" });
   }
-}; 
+};
+
+export default exports;

@@ -19,3 +19,6 @@ const MenuOption = SequelizeInstance.define("menuOption", {
 
 export default MenuOption;
 
+
+
+

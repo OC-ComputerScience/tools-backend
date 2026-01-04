@@ -1,35 +1,36 @@
-const { Sequelize } = require('sequelize');
+import Sequelize from "sequelize";
+import SequelizeInstance from "../config/sequelizeInstance.js";
 
-module.exports = (sequelize, Sequelize) => {
-const UniversityTranscript = sequelize.define("universityTranscript", {
+const UniversityTranscript = SequelizeInstance.define("universityTranscript", {
   id: {
     type: Sequelize.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
   },
   OCIdNumber: {
     type: Sequelize.STRING,
-    allowNull: false
+    allowNull: false,
   },
   name: {
     type: Sequelize.STRING,
-    allowNull: false
+    allowNull: false,
   },
   universityId: {
     type: Sequelize.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
   official: {
     type: Sequelize.BOOLEAN,
     allowNull: false,
-    defaultValue: false
-  }
+    defaultValue: false,
+  },
 }, {
-  sequelize,
-  modelName: 'UniversityTranscript',
-  tableName: 'university_transcripts',
-  timestamps: true
+  timestamps: true,
+  tableName: "university_transcripts",
 });
 
-return UniversityTranscript; 
-}
+export default UniversityTranscript;
+
+
+
+

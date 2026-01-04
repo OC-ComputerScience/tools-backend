@@ -4,22 +4,22 @@ import logger from "../config/logger.js";
 const Section = db.section;
 const AssignedCourse = db.assignedCourse;
 const User = db.user;
-const Term = db.term;
+const Semester = db.Semester;
 const Op = db.Sequelize.Op;
 const exports = {};
 
 // Create and Save a new Section
 exports.create = (req, res) => {
-  if (!req.body.termId || !req.body.courseNumber || !req.body.courseSection || !req.body.userId) {
+  if (!req.body.semesterId || !req.body.courseNumber || !req.body.courseSection || !req.body.userId) {
     logger.warn("Section creation attempt with missing required fields");
     res.status(400).send({
-      message: "Term ID, course number, course section, and user ID are required!",
+      message: "Semester ID, course number, course section, and user ID are required!",
     });
     return;
   }
 
   const section = {
-    termId: req.body.termId,
+    semesterId: req.body.semesterId,
     courseNumber: req.body.courseNumber,
     courseSection: req.body.courseSection,
     courseDescription: req.body.courseDescription || null,
@@ -43,12 +43,12 @@ exports.create = (req, res) => {
 
 // Retrieve all Sections from the database
 exports.findAll = (req, res) => {
-  const termId = req.query.termId;
+  const semesterId = req.query.semesterId;
   const userId = req.query.userId;
 
   let condition = {};
-  if (termId) {
-    condition.termId = termId;
+  if (semesterId) {
+    condition.semesterId = semesterId;
   }
   if (userId) {
     condition.userId = userId;
@@ -60,7 +60,7 @@ exports.findAll = (req, res) => {
     where: condition,
     include: [
       { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
-      { model: Term, as: "term", attributes: ["id", "termName", "startDate"] },
+      { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
   })
@@ -78,12 +78,12 @@ exports.findAll = (req, res) => {
 
 // Retrieve all Sections with assignment count information
 exports.findAllWithCount = (req, res) => {
-  const termId = req.query.termId;
+  const semesterId = req.query.semesterId;
   const userId = req.query.userId;
 
   let condition = {};
-  if (termId) {
-    condition.termId = termId;
+  if (semesterId) {
+    condition.semesterId = semesterId;
   }
   if (userId) {
     condition.userId = userId;
@@ -95,7 +95,7 @@ exports.findAllWithCount = (req, res) => {
     where: condition,
     include: [
       { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
-      { model: Term, as: "term", attributes: ["id", "termName", "startDate"] },
+      { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
   })
@@ -155,9 +155,9 @@ exports.findAllWithCount = (req, res) => {
 // Find sections by user email
 exports.findByUserEmail = (req, res) => {
   const email = req.params.email;
-  const termId = req.query.termId;
+  const semesterId = req.query.semesterId;
 
-  logger.debug(`Finding sections for user email: ${email}, termId: ${termId}`);
+  logger.debug(`Finding sections for user email: ${email}, semesterId: ${semesterId}`);
 
   // First find the user by email
   User.findOne({
@@ -171,15 +171,15 @@ exports.findByUserEmail = (req, res) => {
       }
 
       let condition = { userId: user.id };
-      if (termId) {
-        condition.termId = termId;
+      if (semesterId) {
+        condition.semesterId = semesterId;
       }
 
       return Section.findAll({
         where: condition,
         include: [
           { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
-          { model: Term, as: "term", attributes: ["id", "termName", "startDate"] },
+          { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
         ],
         order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
       });
@@ -199,7 +199,7 @@ exports.findByUserEmail = (req, res) => {
             as: "assignedSection",
             attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
             include: [
-              { model: Term, as: "term", attributes: ["id", "termName", "startDate"] },
+              { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
             ],
           },
         ],
@@ -250,7 +250,7 @@ exports.findOne = (req, res) => {
   Section.findByPk(id, {
     include: [
       { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
-      { model: Term, as: "term", attributes: ["id", "termName", "startDate"] },
+      { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
   })
     .then((data) => {

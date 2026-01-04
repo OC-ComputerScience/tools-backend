@@ -173,6 +173,12 @@ exports.login = async (req, res) => {
             ],
           });
           
+          if (!userWithRoles) {
+            logger.error(`User not found with id: ${user.id}`);
+            res.status(404).send({ message: "User not found" });
+            return;
+          }
+          
           let userInfo = {
             email: userWithRoles.email,
             fName: userWithRoles.fName,
@@ -227,6 +233,12 @@ exports.login = async (req, res) => {
             },
           ],
         });
+        
+        if (!userWithRoles) {
+          logger.error(`User not found with id: ${user.id} after creating session`);
+          res.status(404).send({ message: "User not found" });
+          return;
+        }
         
         let userInfo = {
           email: userWithRoles.email,

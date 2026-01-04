@@ -1,24 +1,29 @@
+import { Router } from "express";
+import universityCourseController from "../controllers/universityCourse.controller.js";
+import authenticate from "../authorization/authorization.js";
 
-module.exports = (app) => {
-    const user = require("../controllers/user.controller.js");
-    const universityCourseController = require('../controllers/universityCourse.controller');
-    const { authenticate } = require("../authorization/authorization.js");
-    var router = require("express").Router();
+const router = Router();
 
 // Create a new UniversityCourse
-router.post('/', [authenticate], universityCourseController.create);
+router.post("/", [authenticate], universityCourseController.create);
 
 // Get all UniversityCourses
-router.get('/', [authenticate], universityCourseController.findAll);
+router.get("/", [authenticate], universityCourseController.findAll);
+
+// Get all UniversityCourses for a university
+router.get(
+  "/university/:universityId",
+  [authenticate],
+  universityCourseController.findAllforUniversity
+);
 
 // Get a single UniversityCourse by id
-router.get('/university/:universityId', [authenticate], universityCourseController.findAllforUniversity);
+router.get("/:id", [authenticate], universityCourseController.findOne);
 
 // Update a UniversityCourse
-router.put('/:id', [authenticate], universityCourseController.update);
+router.put("/:id", [authenticate], universityCourseController.update);
 
 // Delete a UniversityCourse
-router.delete('/:id', [authenticate], universityCourseController.delete);
+router.delete("/:id", [authenticate], universityCourseController.delete);
 
-app.use("/transcript/universityCourses", router);
-}
+export default router;

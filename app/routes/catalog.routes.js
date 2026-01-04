@@ -1,22 +1,21 @@
-module.exports = (app) => {
-  const express = require('express');
-  const router = express.Router();
-  const catalogController = require('../controllers/catalog.controller');
+import { Router } from "express";
+import catalogController from "../controllers/catalog.controller.js";
 
-  // Get all catalogs
-  router.get('/', catalogController.getAll);
+const router = Router();
 
-  // Get a single catalog by ID
-  router.get('/:id', catalogController.getById);
+// Get all catalogs
+router.get("/", catalogController.getAll);
 
-  // Create a new catalog
-  router.post('/', catalogController.create);
+// Get a single catalog by ID
+router.get("/:id", catalogController.getById);
 
-  // Update a catalog
-  router.put('/:id', catalogController.update);
+// Create a new catalog
+router.post("/", catalogController.create);
 
-  // Delete a catalog
-  router.delete('/:id', catalogController.delete);
+// Update a catalog
+router.put("/:id", catalogController.update);
 
-  app.use("/transcript/catalogs", router);
-};
+// Delete a catalog
+router.delete("/:id", catalogController.delete);
+
+export default router;
