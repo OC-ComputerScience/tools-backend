@@ -9,6 +9,7 @@ import MeetingTimeRoutes from "./meetingTime.routes.js";
 import MajorRoutes from "./major.routes.js";
 import SemesterPlanRoutes from "./semesterPlan.routes.js";
 import RoleRoutes from "./role.routes.js";
+import UserSectionRoutes from "./userSection.routes.js";
 import MenuOptionRoutes from "./menuOption.routes.js";
 import UniversityRoutes from "./university.routes.js";
 import UniversityCourseRoutes from "./universityCourse.routes.js";
@@ -30,6 +31,7 @@ router.use("/meetingTimes", MeetingTimeRoutes);
 router.use("/majors", MajorRoutes);
 router.use("/semesterPlans", SemesterPlanRoutes);
 router.use("/roles", RoleRoutes);
+router.use("/userSections", UserSectionRoutes);
 router.use("/menuOptions", MenuOptionRoutes);
 
 // Transcript routes

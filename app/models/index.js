@@ -13,6 +13,7 @@ import Major from "./major.model.js";
 import SemesterPlan from "./semesterPlan.model.js";
 import Role from "./role.model.js";
 import UserRole from "./userRole.model.js";
+import UserSection from "./userSection.model.js";
 import MenuOption from "./menuOption.model.js";
 import RoleMenuOption from "./roleMenuOption.model.js";
 import University from "./university.model.js";
@@ -36,6 +37,7 @@ db.major = Major;
 db.semesterPlan = SemesterPlan;
 db.role = Role;
 db.userRole = UserRole;
+db.userSection = UserSection;
 db.menuOption = MenuOption;
 db.roleMenuOption = RoleMenuOption;
 db.University = University;
@@ -62,9 +64,6 @@ db.session.belongsTo(
 // Those relationships are handled by the Section model
 
 // Foreign key relationships for Section
-db.user.hasMany(db.section, { as: "sections", foreignKey: "userId", onDelete: "CASCADE" });
-db.section.belongsTo(db.user, { as: "user", foreignKey: "userId" });
-
 db.Semester.hasMany(db.section, { as: "sections", foreignKey: "semesterId", onDelete: "CASCADE" });
 db.section.belongsTo(db.Semester, { as: "semester", foreignKey: "semesterId" });
 
@@ -130,6 +129,28 @@ db.menuOption.belongsToMany(db.role, {
   otherKey: "roleId",
   onDelete: "CASCADE",
 });
+
+// Many-to-many relationship between User and Section (via user_sections join table)
+db.user.belongsToMany(db.section, {
+  through: db.userSection,
+  as: "mappedSections",
+  foreignKey: "userId",
+  otherKey: "sectionId",
+  onDelete: "CASCADE",
+});
+db.section.belongsToMany(db.user, {
+  through: db.userSection,
+  as: "mappedUsers",
+  foreignKey: "sectionId",
+  otherKey: "userId",
+  onDelete: "CASCADE",
+});
+
+// Direct relationships for UserSection join table
+db.userSection.belongsTo(db.user, { as: "user", foreignKey: "userId" });
+db.userSection.belongsTo(db.section, { as: "section", foreignKey: "sectionId" });
+db.user.hasMany(db.userSection, { as: "userSections", foreignKey: "userId" });
+db.section.hasMany(db.userSection, { as: "sectionUsers", foreignKey: "sectionId" });
 // Define relationships
 db.University.hasMany(db.UniversityCourse, { foreignKey: 'universityId' });
 db.University.hasMany(db.UniversityTranscript, { foreignKey: 'universityId' });

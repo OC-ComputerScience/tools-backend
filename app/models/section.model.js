@@ -23,12 +23,12 @@ const Section = SequelizeInstance.define("section", {
     type: Sequelize.STRING,
     allowNull: true,
   },
-  userId: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-  },
   accountId: {
     type: Sequelize.STRING,
+    allowNull: true,
+  },
+  sectionCode: {
+    type: Sequelize.STRING(255),
     allowNull: true,
   },
 });

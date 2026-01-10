@@ -54,6 +54,10 @@ const MeetingTime = SequelizeInstance.define("meetingTime", {
     type: Sequelize.TIME,
     allowNull: false,
   },
+  sectionCode: {
+    type: Sequelize.STRING(255),
+    allowNull: true,
+  },
 });
 
 export default MeetingTime;

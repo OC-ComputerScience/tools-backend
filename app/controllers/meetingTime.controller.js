@@ -1,10 +1,45 @@
 import db from "../models/index.js";
 import logger from "../config/logger.js";
+import multer from "multer";
 
 const MeetingTime = db.meetingTime;
 const Section = db.section;
 const Op = db.Sequelize.Op;
 const exports = {};
+
+// Configure multer for CSV file upload (memory storage for CSV)
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype === "text/csv" || file.mimetype === "application/vnd.ms-excel" || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only CSV files are allowed"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+}).single("file");
+
+// Helper function to parse CSV line (handle quoted values)
+const parseCSVLine = (line) => {
+  const values = [];
+  let currentValue = '';
+  let inQuotes = false;
+  
+  for (let j = 0; j < line.length; j++) {
+    const char = line[j];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(currentValue.trim());
+      currentValue = '';
+    } else {
+      currentValue += char;
+    }
+  }
+  values.push(currentValue.trim()); // Add last value
+  return values;
+};
 
 // Create and Save a new MeetingTime
 exports.create = (req, res) => {
@@ -224,6 +259,151 @@ exports.deleteBySectionId = (req, res) => {
         message: "Could not delete MeetingTimes for sectionId=" + sectionId,
       });
     });
+};
+
+// Import meeting times from CSV file
+exports.importCSV = async (req, res) => {
+  logger.debug("Starting CSV import for meeting times");
+
+  csvUpload(req, res, async function (err) {
+    if (err instanceof multer.MulterError) {
+      logger.error(`Multer error during CSV import: ${err.message}`);
+      return res.status(400).json({ message: err.message });
+    } else if (err) {
+      logger.error(`Error during CSV import: ${err.message}`);
+      return res.status(500).json({ message: err.message });
+    }
+
+    if (!req.file) {
+      logger.warn("No file uploaded for CSV import");
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    try {
+      // Parse CSV file
+      const csvContent = req.file.buffer.toString('utf-8');
+      const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file must have at least a header row and one data row" });
+      }
+
+      // Parse header row
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      logger.debug(`CSV headers: ${headers.join(', ')}`);
+
+      // Find column indices for required and optional columns
+      // Extra columns in the CSV file will be ignored
+      const sectionCodeIndex = headers.findIndex(h => h === 'section_code');
+      const mondayIndex = headers.findIndex(h => h === 'monday');
+      const tuesdayIndex = headers.findIndex(h => h === 'tuesday');
+      const wednesdayIndex = headers.findIndex(h => h === 'wednesday');
+      const thursdayIndex = headers.findIndex(h => h === 'thursday');
+      const fridayIndex = headers.findIndex(h => h === 'friday');
+      const saturdayIndex = headers.findIndex(h => h === 'saturday');
+      const sundayIndex = headers.findIndex(h => h === 'sunday');
+      const startTimeIndex = headers.findIndex(h => h === 'start_time');
+      const endTimeIndex = headers.findIndex(h => h === 'end_time');
+
+      // Validate that all required columns exist
+      // Note: Extra columns in CSV will be automatically ignored
+      if (sectionCodeIndex === -1 || startTimeIndex === -1 || endTimeIndex === -1) {
+        return res.status(400).json({ 
+          message: "CSV must contain columns: section_code, start_time, end_time. Extra columns will be ignored." 
+        });
+      }
+
+      // Log any extra columns that will be ignored (optional - for debugging)
+      const requiredColumns = ['section_code', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_time', 'end_time'];
+      const extraColumns = headers.filter(h => !requiredColumns.includes(h));
+      if (extraColumns.length > 0) {
+        logger.debug(`Ignoring extra columns in CSV: ${extraColumns.join(', ')}`);
+      }
+
+      let addedCount = 0;
+      const errors = [];
+
+      // Process each data row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        try {
+          const values = parseCSVLine(line);
+
+          const sectionCode = values[sectionCodeIndex] ? values[sectionCodeIndex].trim() : null;
+          const monday = values[mondayIndex] ? (parseInt(values[mondayIndex].trim()) === 1) : false;
+          const tuesday = values[tuesdayIndex] ? (parseInt(values[tuesdayIndex].trim()) === 1) : false;
+          const wednesday = values[wednesdayIndex] ? (parseInt(values[wednesdayIndex].trim()) === 1) : false;
+          const thursday = values[thursdayIndex] ? (parseInt(values[thursdayIndex].trim()) === 1) : false;
+          const friday = values[fridayIndex] ? (parseInt(values[fridayIndex].trim()) === 1) : false;
+          const saturday = values[saturdayIndex] ? (parseInt(values[saturdayIndex].trim()) === 1) : false;
+          const sunday = values[sundayIndex] ? (parseInt(values[sundayIndex].trim()) === 1) : false;
+          const startTime = values[startTimeIndex] ? values[startTimeIndex].trim() : null;
+          const endTime = values[endTimeIndex] ? values[endTimeIndex].trim() : null;
+
+          if (!sectionCode || !startTime || !endTime) {
+            errors.push(`Row ${i + 1}: Missing required fields (section_code, start_time, or end_time)`);
+            continue;
+          }
+
+          // Look up section by sectionCode to get sectionId
+          const section = await Section.findOne({
+            where: { sectionCode: sectionCode }
+          });
+
+          if (!section) {
+            errors.push(`Row ${i + 1}: Section not found with sectionCode: ${sectionCode}`);
+            continue;
+          }
+
+          // Create meeting time
+          try {
+            await MeetingTime.create({
+              sectionId: section.id,
+              monday,
+              tuesday,
+              wednesday,
+              thursday,
+              friday,
+              saturday,
+              sunday,
+              startTime,
+              endTime,
+              sectionCode,
+            });
+            addedCount++;
+            logger.debug(`Added meeting time: sectionId=${section.id}, sectionCode=${sectionCode}, ${startTime}-${endTime}`);
+          } catch (createErr) {
+            // If duplicate key error, skip it
+            if (createErr.name === 'SequelizeUniqueConstraintError' || 
+                createErr.message.includes('Duplicate entry') ||
+                createErr.message.includes('duplicate key')) {
+              logger.debug(`Skipping duplicate meeting time at row ${i + 1}: sectionId=${section.id}, ${startTime}-${endTime}`);
+              continue;
+            }
+            throw createErr;
+          }
+        } catch (rowErr) {
+          logger.error(`Error processing row ${i + 1}: ${rowErr.message}`);
+          errors.push(`Row ${i + 1}: ${rowErr.message}`);
+        }
+      }
+
+      logger.info(`CSV import completed: ${addedCount} added, ${errors.length} errors`);
+      
+      res.status(200).json({
+        message: "CSV import completed",
+        added: addedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error) {
+      logger.error(`Error processing CSV import: ${error.message}`);
+      res.status(500).json({
+        message: error.message || "Error processing CSV file",
+      });
+    }
+  });
 };
 
 export default exports;

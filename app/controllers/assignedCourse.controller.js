@@ -71,12 +71,12 @@ exports.findAll = (req, res) => {
         { 
           model: Section, 
           as: "section",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId', 'userId']
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId']
         },
         { 
           model: Section, 
           as: "assignedSection",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId', 'userId']
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId']
         }
       ],
       distinct: true

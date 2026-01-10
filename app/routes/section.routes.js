@@ -24,4 +24,7 @@ router.put("/:id", [authenticate], sections.update);
 // Delete a Section with id (Admin only)
 router.delete("/:id", [authenticate], sections.delete);
 
+// Import sections from CSV
+router.post("/import", [authenticate], sections.importCSV);
+
 export default router;
