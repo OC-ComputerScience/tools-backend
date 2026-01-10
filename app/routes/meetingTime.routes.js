@@ -24,5 +24,8 @@ router.delete("/:id", [authenticate], meetingTimes.delete);
 // Delete all meeting times for a specific section
 router.delete("/section/:sectionId", [authenticate], meetingTimes.deleteBySectionId);
 
+// Import meeting times from CSV
+router.post("/import", [authenticate], meetingTimes.importCSV);
+
 export default router;
 

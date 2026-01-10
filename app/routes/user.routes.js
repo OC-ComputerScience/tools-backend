@@ -12,5 +12,8 @@ router.get("/:id", [authenticate], users.findOne);
 // Update a User with id
 router.put("/:id", [authenticate], users.update);
 
+// Import users from CSV
+router.post("/import", [authenticate], users.importCSV);
+
 export default router;
 

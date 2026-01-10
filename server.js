@@ -124,6 +124,104 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Modify grade column in transcript_courses table to allow NULL
+      const transcriptCourseTableName = db.TranscriptCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${transcriptCourseTableName}
+        MODIFY COLUMN grade VARCHAR(255) NULL
+      `).catch((err) => {
+        // If error is about column not existing or already nullable, that's fine
+        if (err.message && (
+          err.message.includes("doesn't exist") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("Grade column modification skipped (may already be nullable)");
+          return Promise.resolve();
+        }
+        logger.warn("Could not modify grade column:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add sectionCode column to sections table if it doesn't exist
+      const sectionTableName = db.section.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${sectionTableName}
+        ADD COLUMN sectionCode VARCHAR(255) NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("sectionCode column already exists in sections table, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Sections table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add sectionCode column to sections table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add sectionCode column to user_sections table if it doesn't exist
+      const userSectionTableName = db.userSection.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${userSectionTableName}
+        ADD COLUMN sectionCode VARCHAR(255) NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("sectionCode column already exists in user_sections table, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("User_sections table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add sectionCode column to user_sections table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add sectionCode column to meetingTime table if it doesn't exist
+      const meetingTimeTableName = db.meetingTime.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${meetingTimeTableName}
+        ADD COLUMN sectionCode VARCHAR(255) NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("sectionCode column already exists in meetingTime table, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("MeetingTime table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add sectionCode column to meetingTime table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       app.listen(PORT, () => {
         logger.info(`Server is running on port ${PORT}`);
       });

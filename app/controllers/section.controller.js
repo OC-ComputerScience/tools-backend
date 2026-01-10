@@ -1,19 +1,55 @@
 import db from "../models/index.js";
 import logger from "../config/logger.js";
+import multer from "multer";
 
 const Section = db.section;
 const AssignedCourse = db.assignedCourse;
 const User = db.user;
+const UserSection = db.userSection;
 const Semester = db.Semester;
 const Op = db.Sequelize.Op;
 const exports = {};
 
+// Configure multer for CSV file upload (memory storage for CSV)
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype === "text/csv" || file.mimetype === "application/vnd.ms-excel" || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only CSV files are allowed"));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+}).single("file");
+
+// Helper function to parse CSV line (handle quoted values)
+const parseCSVLine = (line) => {
+  const values = [];
+  let currentValue = '';
+  let inQuotes = false;
+  
+  for (let j = 0; j < line.length; j++) {
+    const char = line[j];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(currentValue.trim());
+      currentValue = '';
+    } else {
+      currentValue += char;
+    }
+  }
+  values.push(currentValue.trim()); // Add last value
+  return values;
+};
+
 // Create and Save a new Section
 exports.create = (req, res) => {
-  if (!req.body.semesterId || !req.body.courseNumber || !req.body.courseSection || !req.body.userId) {
+  if (!req.body.semesterId || !req.body.courseNumber || !req.body.courseSection) {
     logger.warn("Section creation attempt with missing required fields");
     res.status(400).send({
-      message: "Semester ID, course number, course section, and user ID are required!",
+      message: "Semester ID, course number, and course section are required!",
     });
     return;
   }
@@ -23,7 +59,6 @@ exports.create = (req, res) => {
     courseNumber: req.body.courseNumber,
     courseSection: req.body.courseSection,
     courseDescription: req.body.courseDescription || null,
-    userId: req.body.userId,
   };
 
   logger.debug(`Creating section: ${section.courseNumber}-${section.courseSection}`);
@@ -44,14 +79,10 @@ exports.create = (req, res) => {
 // Retrieve all Sections from the database
 exports.findAll = (req, res) => {
   const semesterId = req.query.semesterId;
-  const userId = req.query.userId;
 
   let condition = {};
   if (semesterId) {
     condition.semesterId = semesterId;
-  }
-  if (userId) {
-    condition.userId = userId;
   }
 
   logger.debug(`Fetching sections with condition: ${JSON.stringify(condition)}`);
@@ -59,7 +90,6 @@ exports.findAll = (req, res) => {
   Section.findAll({
     where: condition,
     include: [
-      { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
       { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
@@ -79,14 +109,10 @@ exports.findAll = (req, res) => {
 // Retrieve all Sections with assignment count information
 exports.findAllWithCount = (req, res) => {
   const semesterId = req.query.semesterId;
-  const userId = req.query.userId;
 
   let condition = {};
   if (semesterId) {
     condition.semesterId = semesterId;
-  }
-  if (userId) {
-    condition.userId = userId;
   }
 
   logger.debug(`Fetching sections with count, condition: ${JSON.stringify(condition)}`);
@@ -94,7 +120,6 @@ exports.findAllWithCount = (req, res) => {
   Section.findAll({
     where: condition,
     include: [
-      { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
       { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
@@ -152,94 +177,108 @@ exports.findAllWithCount = (req, res) => {
     });
 };
 
-// Find sections by user email
-exports.findByUserEmail = (req, res) => {
+// Find sections by user email (using user_sections join table)
+exports.findByUserEmail = async (req, res) => {
   const email = req.params.email;
   const semesterId = req.query.semesterId;
 
   logger.debug(`Finding sections for user email: ${email}, semesterId: ${semesterId}`);
 
-  // First find the user by email
-  User.findOne({
-    where: { email: email },
-  })
-    .then((user) => {
-      if (!user) {
-        logger.warn(`User not found with email: ${email}`);
-        res.send([]);
-        return;
-      }
-
-      let condition = { userId: user.id };
-      if (semesterId) {
-        condition.semesterId = semesterId;
-      }
-
-      return Section.findAll({
-        where: condition,
-        include: [
-          { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
-          { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
-        ],
-        order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
-      });
-    })
-    .then(async (data) => {
-      if (!data) return; // Already sent response in user lookup
-      
-      // Fetch assigned courses with includes - now that model fields match database
-      const sectionIds = data.map(s => s.id);
-      const assignedCourses = await AssignedCourse.findAll({
-        where: {
-          sectionId: { [Op.in]: sectionIds }
-        },
-        include: [
-          {
-            model: Section,
-            as: "assignedSection",
-            attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
-            include: [
-              { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
-            ],
-          },
-        ],
-      });
-
-      // Group assigned courses by sectionId
-      const assignedBySectionId = {};
-      assignedCourses.forEach(ac => {
-        if (!assignedBySectionId[ac.sectionId]) {
-          assignedBySectionId[ac.sectionId] = [];
-        }
-        assignedBySectionId[ac.sectionId].push(ac.toJSON());
-      });
-
-      // Transform data to match frontend expectations
-      const transformedData = data.map((section) => {
-        const sectionJson = section.toJSON();
-        // Get the first assigned course record if any exist
-        const assignedSections = assignedBySectionId[section.id] || [];
-        // Frontend expects assignedCourse to be the full AssignedCourse object with nested assignedSection
-        const assignedCourse =
-          assignedSections.length > 0
-            ? assignedSections[0] // Return the full AssignedCourse object which includes assignedSection
-            : null;
-
-        return {
-          ...sectionJson,
-          assignedCourse: assignedCourse, // Full AssignedCourse object with nested assignedSection
-        };
-      });
-
-      logger.info(`Retrieved ${transformedData.length} sections for user email: ${email}`);
-      res.send(transformedData);
-    })
-    .catch((err) => {
-      logger.error(`Error retrieving sections for user email ${email}: ${err.message}`);
-      res.status(500).send({
-        message: err.message || "Some error occurred while retrieving sections for user.",
-      });
+  try {
+    // First find the user by email
+    const user = await User.findOne({
+      where: { email: email },
     });
+
+    if (!user) {
+      logger.warn(`User not found with email: ${email}`);
+      return res.send([]);
+    }
+
+    // Use the user_sections join table to find sections for this user
+    let userSectionCondition = { userId: user.id };
+    const userSections = await UserSection.findAll({
+      where: userSectionCondition,
+      include: [
+        {
+          model: Section,
+          as: "section",
+          attributes: ["id", "courseNumber", "courseSection", "courseDescription", "semesterId"],
+          include: [
+            { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
+          ],
+          ...(semesterId ? { where: { semesterId: semesterId } } : {}),
+        },
+      ],
+    });
+
+    // Extract sections from userSection relationships
+    let sections = userSections
+      .map(us => us.section)
+      .filter(s => s !== null);
+    
+    if (semesterId) {
+      sections = sections.filter(s => s.semesterId === parseInt(semesterId));
+    }
+    
+    // Sort sections
+    sections.sort((a, b) => {
+      const courseCompare = a.courseNumber.localeCompare(b.courseNumber);
+      return courseCompare !== 0 ? courseCompare : a.courseSection.localeCompare(b.courseSection);
+    });
+
+    // Continue with existing logic to fetch assigned courses
+    const sectionIds = sections.map(s => s.id);
+    const assignedCourses = await AssignedCourse.findAll({
+      where: {
+        sectionId: { [Op.in]: sectionIds }
+      },
+      include: [
+        {
+          model: Section,
+          as: "assignedSection",
+          attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
+          include: [
+            { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
+          ],
+        },
+      ],
+    });
+
+    // Group assigned courses by sectionId
+    const assignedBySectionId = {};
+    assignedCourses.forEach(ac => {
+      if (!assignedBySectionId[ac.sectionId]) {
+        assignedBySectionId[ac.sectionId] = [];
+      }
+      assignedBySectionId[ac.sectionId].push(ac.toJSON());
+    });
+
+    // Transform data to match frontend expectations
+    const transformedData = sections.map((section) => {
+      const sectionJson = section.toJSON ? section.toJSON() : section;
+      // Get the first assigned course record if any exist
+      const assignedSections = assignedBySectionId[section.id] || [];
+      // Frontend expects assignedCourse to be the full AssignedCourse object with nested assignedSection
+      const assignedCourse =
+        assignedSections.length > 0
+          ? assignedSections[0] // Return the full AssignedCourse object which includes assignedSection
+          : null;
+
+      return {
+        ...sectionJson,
+        assignedCourse: assignedCourse, // Full AssignedCourse object with nested assignedSection
+      };
+    });
+
+    logger.info(`Retrieved ${transformedData.length} sections for user email: ${email}`);
+    res.send(transformedData);
+  } catch (err) {
+    logger.error(`Error retrieving sections for user email ${email}: ${err.message}`);
+    res.status(500).send({
+      message: err.message || "Some error occurred while retrieving sections for user.",
+    });
+  }
 };
 
 // Find a single Section with an id
@@ -249,7 +288,6 @@ exports.findOne = (req, res) => {
 
   Section.findByPk(id, {
     include: [
-      { model: User, as: "user", attributes: ["id", "fName", "lName", "email"] },
       { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
     ],
   })
@@ -330,6 +368,181 @@ exports.delete = (req, res) => {
         message: "Could not delete Section with id=" + id,
       });
     });
+};
+
+// Import sections from CSV file
+exports.importCSV = async (req, res) => {
+  logger.debug("Starting CSV import for sections");
+
+  csvUpload(req, res, async function (err) {
+    if (err instanceof multer.MulterError) {
+      logger.error(`Multer error during CSV import: ${err.message}`);
+      return res.status(400).json({ message: err.message });
+    } else if (err) {
+      logger.error(`Error during CSV import: ${err.message}`);
+      return res.status(500).json({ message: err.message });
+    }
+
+    if (!req.file) {
+      logger.warn("No file uploaded for CSV import");
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    try {
+      // Parse CSV file
+      const csvContent = req.file.buffer.toString('utf-8');
+      const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ message: "CSV file must have at least a header row and one data row" });
+      }
+
+      // Parse header row
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      logger.debug(`CSV headers: ${headers.join(', ')}`);
+
+      // Find column indices for required and optional columns
+      // Extra columns in the CSV file will be ignored
+      const courseIdIndex = headers.findIndex(h => h === 'course_id');
+      const courseNumIndex = headers.findIndex(h => h === 'course_num');
+      const sectionNumIndex = headers.findIndex(h => h === 'section_num');
+      const longNameIndex = headers.findIndex(h => h === 'long_name');
+      const termIdIndex = headers.findIndex(h => h === 'term_id');
+      const accountIdIndex = headers.findIndex(h => h === 'account_id'); // Optional
+
+      // Validate that all required columns exist
+      // Note: Extra columns in CSV will be automatically ignored
+      if (courseIdIndex === -1 || courseNumIndex === -1 || sectionNumIndex === -1 || longNameIndex === -1 || termIdIndex === -1) {
+        return res.status(400).json({ 
+          message: "CSV must contain columns: course_id, course_num, section_num, long_name, term_id. Extra columns will be ignored." 
+        });
+      }
+
+      // Log any extra columns that will be ignored (optional - for debugging)
+      const requiredColumns = ['course_id', 'course_num', 'section_num', 'long_name', 'term_id', 'account_id'];
+      const extraColumns = headers.filter(h => !requiredColumns.includes(h));
+      if (extraColumns.length > 0) {
+        logger.debug(`Ignoring extra columns in CSV: ${extraColumns.join(', ')}`);
+      }
+
+      // Fetch all semesters to create a lookup map by name
+      const Semester = db.Semester;
+      const allSemesters = await Semester.findAll();
+      const semesterMap = new Map();
+      allSemesters.forEach(sem => {
+        semesterMap.set(sem.name.toLowerCase(), sem.id);
+      });
+      logger.debug(`Loaded ${allSemesters.length} semesters for lookup`);
+
+      let addedCount = 0;
+      const errors = [];
+
+      // Process each data row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        try {
+          const values = parseCSVLine(line);
+
+          const sectionCode = values[courseIdIndex] ? values[courseIdIndex].trim() : null;
+          const courseNumber = values[courseNumIndex] ? values[courseNumIndex].trim() : '';
+          const courseSection = values[sectionNumIndex] ? values[sectionNumIndex].trim() : '';
+          const courseDescription = values[longNameIndex] ? values[longNameIndex].trim() : null;
+          const termIdValue = values[termIdIndex] ? values[termIdIndex].trim() : null;
+          const accountId = values[accountIdIndex] ? values[accountIdIndex].trim() : null;
+
+          if (!courseNumber || !courseSection) {
+            errors.push(`Row ${i + 1}: Missing required fields (course_num or section_num)`);
+            continue;
+          }
+
+          if (!termIdValue) {
+            errors.push(`Row ${i + 1}: Missing required field (term_id)`);
+            continue;
+          }
+
+          // Look up semester by name from term_id field
+          const semesterId = semesterMap.get(termIdValue.toLowerCase());
+          if (!semesterId) {
+            errors.push(`Row ${i + 1}: Semester not found with name: ${termIdValue}`);
+            continue;
+          }
+
+          // Check for duplicate: same semester, course number, and section number
+          const existingSection = await Section.findOne({
+            where: {
+              semesterId: semesterId,
+              courseNumber: courseNumber,
+              courseSection: courseSection,
+            }
+          });
+
+          if (existingSection) {
+            logger.debug(`Skipping duplicate section at row ${i + 1}: ${courseNumber}-${courseSection} in semester ${semesterId}`);
+            continue;
+          }
+
+          // Create section
+          try {
+            await Section.create({
+              semesterId: semesterId,
+              courseNumber,
+              courseSection,
+              courseDescription,
+              sectionCode,
+              accountId,
+            });
+            addedCount++;
+            logger.debug(`Added section: ${courseNumber}-${courseSection} (${sectionCode}) in semester ${termIdValue} (id: ${semesterId})`);
+          } catch (createErr) {
+            // If duplicate key error, skip it
+            if (createErr.name === 'SequelizeUniqueConstraintError' || 
+                createErr.message.includes('Duplicate entry') ||
+                createErr.message.includes('duplicate key')) {
+              logger.debug(`Skipping duplicate section at row ${i + 1}: ${courseNumber}-${courseSection}`);
+              continue;
+            }
+            // Log the full error for debugging
+            logger.error(`Error creating section at row ${i + 1}:`, {
+              error: createErr.message,
+              stack: createErr.stack,
+              courseNumber,
+              courseSection,
+              semesterId
+            });
+            errors.push(`Row ${i + 1}: Error creating section - ${createErr.message}`);
+            continue;
+          }
+        } catch (rowErr) {
+          logger.error(`Error processing row ${i + 1}:`, {
+            error: rowErr.message,
+            stack: rowErr.stack,
+            line: lines[i]
+          });
+          errors.push(`Row ${i + 1}: ${rowErr.message}`);
+        }
+      }
+
+      logger.info(`CSV import completed: ${addedCount} added, ${errors.length} errors`);
+      
+      res.status(200).json({
+        message: "CSV import completed",
+        added: addedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error) {
+      logger.error(`Error processing CSV import:`, {
+        error: error.message,
+        stack: error.stack,
+        fileName: req.file ? req.file.originalname : 'unknown'
+      });
+      res.status(500).json({
+        message: error.message || "Error processing CSV file",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
 };
 
 export default exports;
