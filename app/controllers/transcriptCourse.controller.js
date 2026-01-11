@@ -9,11 +9,56 @@ const Semester = db.Semester;
 
 const exports = {};
 
+// Helper function to update transcript status based on courses
+const updateTranscriptStatus = async (transcriptId) => {
+  try {
+    const transcriptCourses = await TranscriptCourse.findAll({
+      where: { universityTranscriptId: transcriptId }
+    });
+
+    if (transcriptCourses.length === 0) {
+      // No courses, status should be "Not Process"
+      await UniversityTranscript.update(
+        { status: "Not Process" },
+        { where: { id: transcriptId } }
+      );
+      return;
+    }
+
+    const allApproved = transcriptCourses.every(
+      course => course.status === "Approved"
+    );
+    const anyApproved = transcriptCourses.some(
+      course => course.status === "Approved" || course.status === "Matched"
+    );
+
+    let newStatus = "Not Process";
+    if (allApproved) {
+      newStatus = "Completed";
+    } else if (anyApproved) {
+      newStatus = "In-Progress";
+    }
+
+    await UniversityTranscript.update(
+      { status: newStatus },
+      { where: { id: transcriptId } }
+    );
+    
+    logger.debug(`Updated transcript ${transcriptId} status to ${newStatus}`);
+  } catch (error) {
+    logger.error(`Error updating transcript status: ${error.message}`);
+  }
+};
+
 // Create a new TranscriptCourse
 exports.create = async (req, res) => {
   try {
     logger.debug(`Creating transcript course with data: ${JSON.stringify(req.body)}`);
     const transcriptCourse = await TranscriptCourse.create(req.body);
+    
+    // Update transcript status after course creation
+    await updateTranscriptStatus(transcriptCourse.universityTranscriptId);
+    
     const createdCourse = await TranscriptCourse.findByPk(
       transcriptCourse.id,
       {
@@ -119,6 +164,10 @@ exports.update = async (req, res) => {
     }
     
     await transcriptCourse.update(req.body);
+    
+    // Update transcript status after course update
+    await updateTranscriptStatus(transcriptCourse.universityTranscriptId);
+    
     const updatedCourse = await TranscriptCourse.findByPk(id, {
       include: [
         { model: UniversityTranscript },
@@ -152,7 +201,12 @@ exports.delete = async (req, res) => {
       logger.warn(`Transcript course not found with id: ${id}`);
       return res.status(404).json({ message: "Transcript Course not found" });
     }
+    const transcriptId = transcriptCourse.universityTranscriptId;
     await transcriptCourse.destroy();
+    
+    // Update transcript status after course deletion
+    await updateTranscriptStatus(transcriptId);
+    
     logger.info(`Transcript course ${id} deleted successfully`);
     res.json({ message: "Transcript Course deleted successfully" });
   } catch (error) {

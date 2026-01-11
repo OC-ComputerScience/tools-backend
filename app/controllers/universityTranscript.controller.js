@@ -7,11 +7,56 @@ const TranscriptCourse = db.TranscriptCourse;
 
 const exports = {};
 
+// Helper function to update transcript status based on courses
+const updateTranscriptStatus = async (transcriptId) => {
+  try {
+    const transcriptCourses = await TranscriptCourse.findAll({
+      where: { universityTranscriptId: transcriptId }
+    });
+
+    if (transcriptCourses.length === 0) {
+      // No courses, status should be "Not Process"
+      await UniversityTranscript.update(
+        { status: "Not Process" },
+        { where: { id: transcriptId } }
+      );
+      return;
+    }
+
+    const allApproved = transcriptCourses.every(
+      course => course.status === "Approved"
+    );
+    const anyApproved = transcriptCourses.some(
+      course => course.status === "Approved" || course.status === "Matched"
+    );
+
+    let newStatus = "Not Process";
+    if (allApproved) {
+      newStatus = "Completed";
+    } else if (anyApproved) {
+      newStatus = "In-Progress";
+    }
+
+    await UniversityTranscript.update(
+      { status: newStatus },
+      { where: { id: transcriptId } }
+    );
+    
+    logger.debug(`Updated transcript ${transcriptId} status to ${newStatus}`);
+  } catch (error) {
+    logger.error(`Error updating transcript status: ${error.message}`);
+  }
+};
+
 // Create a new UniversityTranscript
 exports.create = async (req, res) => {
   try {
     logger.debug(`Creating university transcript with data: ${JSON.stringify(req.body)}`);
-    const universityTranscript = await UniversityTranscript.create(req.body);
+    const transcriptData = {
+      ...req.body,
+      status: req.body.status || "Not Process"
+    };
+    const universityTranscript = await UniversityTranscript.create(transcriptData);
     logger.info(`University transcript created successfully: ${universityTranscript.id}`);
     res.status(201).json(universityTranscript);
   } catch (error) {

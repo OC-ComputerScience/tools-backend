@@ -24,6 +24,11 @@ const UniversityTranscript = SequelizeInstance.define("universityTranscript", {
     allowNull: false,
     defaultValue: false,
   },
+  status: {
+    type: Sequelize.STRING,
+    allowNull: false,
+    defaultValue: "Not Process",
+  },
 }, {
   timestamps: true,
   tableName: "university_transcripts",
