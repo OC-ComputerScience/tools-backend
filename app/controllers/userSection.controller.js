@@ -276,23 +276,25 @@ exports.importCSV = async (req, res) => {
       // Extra columns in the CSV file will be ignored
       const courseIdIndex = headers.findIndex(h => h === 'course_id');
       const userIdIndex = headers.findIndex(h => h === 'user_id');
+      const roleIndex = headers.findIndex(h => h === 'role');
 
       // Validate that all required columns exist
       // Note: Extra columns in CSV will be automatically ignored
-      if (courseIdIndex === -1 || userIdIndex === -1) {
+      if (courseIdIndex === -1 || userIdIndex === -1 || roleIndex === -1) {
         return res.status(400).json({ 
-          message: "CSV must contain columns: course_id, user_id. Extra columns will be ignored." 
+          message: "CSV must contain columns: course_id, user_id, role. Extra columns will be ignored." 
         });
       }
 
       // Log any extra columns that will be ignored (optional - for debugging)
-      const requiredColumns = ['course_id', 'user_id'];
+      const requiredColumns = ['course_id', 'user_id', 'role'];
       const extraColumns = headers.filter(h => !requiredColumns.includes(h));
       if (extraColumns.length > 0) {
         logger.debug(`Ignoring extra columns in CSV: ${extraColumns.join(', ')}`);
       }
 
       let addedCount = 0;
+      let skippedCount = 0;
       const errors = [];
 
       // Process each data row
@@ -305,9 +307,17 @@ exports.importCSV = async (req, res) => {
 
           const sectionCode = values[courseIdIndex] ? values[courseIdIndex].trim() : null;
           const userId = values[userIdIndex] ? parseInt(values[userIdIndex].trim()) : null;
+          const role = values[roleIndex] ? values[roleIndex].trim().toLowerCase() : '';
 
           if (!sectionCode || !userId || isNaN(userId)) {
             errors.push(`Row ${i + 1}: Missing required fields (course_id or user_id)`);
+            continue;
+          }
+
+          // Only import records where role = "teacher"
+          if (role !== 'teacher') {
+            skippedCount++;
+            logger.debug(`Skipping row ${i + 1}: Role is "${role}" (must be "teacher")`);
             continue;
           }
 
@@ -353,11 +363,12 @@ exports.importCSV = async (req, res) => {
         }
       }
 
-      logger.info(`CSV import completed: ${addedCount} added, ${errors.length} errors`);
+      logger.info(`CSV import completed: ${addedCount} added, ${skippedCount} skipped, ${errors.length} errors`);
       
       res.status(200).json({
         message: "CSV import completed",
         added: addedCount,
+        skipped: skippedCount,
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {

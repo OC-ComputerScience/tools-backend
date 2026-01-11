@@ -404,22 +404,21 @@ exports.importCSV = async (req, res) => {
       // Find column indices for required and optional columns
       // Extra columns in the CSV file will be ignored
       const courseIdIndex = headers.findIndex(h => h === 'course_id');
-      const courseNumIndex = headers.findIndex(h => h === 'course_num');
-      const sectionNumIndex = headers.findIndex(h => h === 'section_num');
+      const shortNameIndex = headers.findIndex(h => h === 'short_name');
       const longNameIndex = headers.findIndex(h => h === 'long_name');
       const termIdIndex = headers.findIndex(h => h === 'term_id');
       const accountIdIndex = headers.findIndex(h => h === 'account_id'); // Optional
 
       // Validate that all required columns exist
       // Note: Extra columns in CSV will be automatically ignored
-      if (courseIdIndex === -1 || courseNumIndex === -1 || sectionNumIndex === -1 || longNameIndex === -1 || termIdIndex === -1) {
+      if (courseIdIndex === -1 || shortNameIndex === -1 || longNameIndex === -1 || termIdIndex === -1) {
         return res.status(400).json({ 
-          message: "CSV must contain columns: course_id, course_num, section_num, long_name, term_id. Extra columns will be ignored." 
+          message: "CSV must contain columns: course_id, short_name, long_name, term_id. Extra columns will be ignored." 
         });
       }
 
       // Log any extra columns that will be ignored (optional - for debugging)
-      const requiredColumns = ['course_id', 'course_num', 'section_num', 'long_name', 'term_id', 'account_id'];
+      const requiredColumns = ['course_id', 'short_name', 'long_name', 'term_id', 'account_id'];
       const extraColumns = headers.filter(h => !requiredColumns.includes(h));
       if (extraColumns.length > 0) {
         logger.debug(`Ignoring extra columns in CSV: ${extraColumns.join(', ')}`);
@@ -446,19 +445,32 @@ exports.importCSV = async (req, res) => {
           const values = parseCSVLine(line);
 
           const sectionCode = values[courseIdIndex] ? values[courseIdIndex].trim() : null;
-          const courseNumber = values[courseNumIndex] ? values[courseNumIndex].trim() : '';
-          const courseSection = values[sectionNumIndex] ? values[sectionNumIndex].trim() : '';
+          const shortName = values[shortNameIndex] ? values[shortNameIndex].trim() : '';
           const courseDescription = values[longNameIndex] ? values[longNameIndex].trim() : null;
           const termIdValue = values[termIdIndex] ? values[termIdIndex].trim() : null;
           const accountId = values[accountIdIndex] ? values[accountIdIndex].trim() : null;
 
-          if (!courseNumber || !courseSection) {
-            errors.push(`Row ${i + 1}: Missing required fields (course_num or section_num)`);
+          if (!shortName) {
+            errors.push(`Row ${i + 1}: Missing required field (short_name)`);
             continue;
           }
 
           if (!termIdValue) {
             errors.push(`Row ${i + 1}: Missing required field (term_id)`);
+            continue;
+          }
+
+          // Parse course number (first 9 characters) and section number (starting at position 11)
+          if (shortName.length < 11) {
+            errors.push(`Row ${i + 1}: short_name must be at least 11 characters long to parse course number and section`);
+            continue;
+          }
+
+          const courseNumber = shortName.substring(0, 9).trim();
+          const courseSection = shortName.substring(10).trim(); // Position 11 = index 10
+
+          if (!courseNumber || !courseSection) {
+            errors.push(`Row ${i + 1}: Could not parse course number or section from short_name: ${shortName}`);
             continue;
           }
 
