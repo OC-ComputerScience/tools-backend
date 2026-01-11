@@ -222,6 +222,32 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Try to add status column to university_transcripts table if it doesn't exist
+      const universityTranscriptTableName = db.UniversityTranscript.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${universityTranscriptTableName}
+        ADD COLUMN status VARCHAR(255) DEFAULT 'Not Process'
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("status column already exists in university_transcripts table, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("University_transcripts table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add status column to university_transcripts table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       app.listen(PORT, () => {
         logger.info(`Server is running on port ${PORT}`);
       });
