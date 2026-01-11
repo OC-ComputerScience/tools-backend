@@ -18,6 +18,9 @@ router.put("/:id", [authenticate], semesterPlans.update);
 // Delete a SemesterPlan with id (Admin only)
 router.delete("/:id", [authenticate], semesterPlans.delete);
 
+// Import semester plans from CSV
+router.post("/import", [authenticate], semesterPlans.importCSV);
+
 export default router;
 
 

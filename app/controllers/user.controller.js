@@ -183,19 +183,20 @@ exports.importCSV = async (req, res) => {
       logger.debug(`CSV headers: ${headers.join(', ')}`);
 
       // Find column indices
-      const idIndex = headers.findIndex(h => h === 'id');
-      const fnameIndex = headers.findIndex(h => h === 'fname' || h === 'firstname');
-      const lnameIndex = headers.findIndex(h => h === 'lname' || h === 'lastname');
+      const idIndex = headers.findIndex(h => h === 'user_id' || h === 'id');
+      const fnameIndex = headers.findIndex(h => h === 'first_name' || h === 'fname' || h === 'firstname');
+      const lnameIndex = headers.findIndex(h => h === 'last_name' || h === 'lname' || h === 'lastname');
       const emailIndex = headers.findIndex(h => h === 'email');
 
       if (idIndex === -1 || fnameIndex === -1 || lnameIndex === -1 || emailIndex === -1) {
         return res.status(400).json({ 
-          message: "CSV must contain columns: id, fname (or firstName), lname (or lastName), email" 
+          message: "CSV must contain columns: user_id (or id), first_name (or fname/firstName), last_name (or lname/lastName), email" 
         });
       }
 
       let addedCount = 0;
       let updatedCount = 0;
+      let skippedCount = 0;
       const errors = [];
 
       // Process each data row
@@ -229,6 +230,13 @@ exports.importCSV = async (req, res) => {
 
           if (!fName || !lName || !email) {
             errors.push(`Row ${i + 1}: Missing required fields (fName, lName, or email)`);
+            continue;
+          }
+
+          // Skip records with @eagles.oc.edu email addresses
+          if (email.includes('@eagles.oc.edu')) {
+            skippedCount++;
+            logger.debug(`Skipping row ${i + 1}: Email contains @eagles.oc.edu (${email})`);
             continue;
           }
 
@@ -273,12 +281,13 @@ exports.importCSV = async (req, res) => {
         }
       }
 
-      logger.info(`CSV import completed: ${addedCount} added, ${updatedCount} updated, ${errors.length} errors`);
+      logger.info(`CSV import completed: ${addedCount} added, ${updatedCount} updated, ${skippedCount} skipped, ${errors.length} errors`);
       
       res.status(200).json({
         message: "CSV import completed",
         added: addedCount,
         updated: updatedCount,
+        skipped: skippedCount,
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {
