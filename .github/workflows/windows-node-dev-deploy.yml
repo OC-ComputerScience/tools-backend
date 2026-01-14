@@ -37,6 +37,7 @@ jobs:
           echo CLIENT_SECRET=${{env.CLIENT_SECRET}} >> .env
           echo PORT=${{env.PORT}} >> .env
           echo GEMINI_API_KEY=${{env.GEMINI_API_KEY}} >> .env
+
       - run: npm run winbundle
       - name: Copy folder content recursively to remote
         uses: garygrossgarten/github-action-scp@release
