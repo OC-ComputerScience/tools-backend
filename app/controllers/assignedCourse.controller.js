@@ -2,27 +2,38 @@ import db  from "../models/index.js";
 import logger from "../config/logger.js";
 
 const AssignedCourse = db.assignedCourse;
-const Course = db.course;
-const Term = db.term;
+const Section = db.section;
+const Semester = db.Semester;
 const Op = db.Sequelize.Op;
 const exports = {};
 
 // Create and Save a new AssignedCourse
 exports.create = (req, res) => {
-  if (!req.body.courseId || !req.body.assignedCourseId) {
+  if (!req.body.sectionId) {
     logger.warn('AssignedCourse creation attempt with missing required fields');
     res.status(400).send({
-      message: "Course ID and Assigned Course ID are required!",
+      message: "Section ID is required!",
+    });
+    return;
+  }
+
+  // If notAssignmentNeeded is true, assignedSectionId can be null
+  // Otherwise, assignedSectionId is required
+  if (!req.body.notAssignmentNeeded && !req.body.assignedSectionId) {
+    logger.warn('AssignedCourse creation attempt with missing assignedSectionId when notAssignmentNeeded is false');
+    res.status(400).send({
+      message: "Assigned Section ID is required when not marking as 'not assignment needed'!",
     });
     return;
   }
 
   const assignedCourse = {
-    courseId: req.body.courseId,
-    assignedCourseId: req.body.assignedCourseId,
+    sectionId: req.body.sectionId,
+    assignedSectionId: req.body.notAssignmentNeeded ? null : req.body.assignedSectionId,
+    notAssignmentNeeded: req.body.notAssignmentNeeded || false,
   };
 
-  logger.debug(`Creating assigned course: ${assignedCourse.courseId} -> ${assignedCourse.assignedCourseId}`);
+  logger.debug(`Creating assigned course: ${assignedCourse.sectionId} -> ${assignedCourse.assignedSectionId || 'N/A (not assignment needed)'}`);
 
   AssignedCourse.create(assignedCourse)
     .then((data) => {
@@ -39,18 +50,18 @@ exports.create = (req, res) => {
 
 // Retrieve all AssignedCourses from the database
 exports.findAll = (req, res) => {
-  const courseId = req.query.courseId;
+  const sectionId = req.query.sectionId;
 
-  let condition = courseId ? { courseId: courseId } : {};
+  let condition = sectionId ? { sectionId: sectionId } : {};
 
   logger.debug(`Fetching assigned courses with condition: ${JSON.stringify(condition)}`);
 
-  // When no courseId filter, use a simple query without includes to avoid alias conflicts
-  if (!courseId) {
+  // When no sectionId filter, use a simple query without includes to avoid alias conflicts
+  if (!sectionId) {
     // Simple query for counting all assigned courses
     AssignedCourse.findAll({
       where: condition,
-      attributes: ['id', 'courseId', 'assignedCourseId'],
+      attributes: ['id', 'sectionId', 'assignedSectionId', 'notAssignmentNeeded'],
       raw: false
     })
       .then((data) => {
@@ -64,25 +75,25 @@ exports.findAll = (req, res) => {
         });
       });
   } else {
-    // When courseId is provided, include Course relationships for details
+    // When sectionId is provided, include Section relationships for details
     AssignedCourse.findAll({
       where: condition,
       include: [
         { 
-          model: Course, 
-          as: "course",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'termId', 'userId']
+          model: Section, 
+          as: "section",
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId']
         },
         { 
-          model: Course, 
-          as: "assignedCourse",
-          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'termId', 'userId']
+          model: Section, 
+          as: "assignedSection",
+          attributes: ['id', 'courseNumber', 'courseSection', 'courseDescription', 'semesterId']
         }
       ],
       distinct: true
     })
       .then((data) => {
-        logger.info(`Retrieved ${data.length} assigned courses for courseId: ${courseId}`);
+        logger.info(`Retrieved ${data.length} assigned courses for sectionId: ${sectionId}`);
         res.send(data);
       })
       .catch((err) => {
@@ -101,8 +112,8 @@ exports.findOne = (req, res) => {
 
   AssignedCourse.findByPk(id, {
     include: [
-      { model: Course, as: "course" },
-      { model: Course, as: "assignedCourse" }
+      { model: Section, as: "section" },
+      { model: Section, as: "assignedSection" }
     ]
   })
     .then((data) => {
@@ -124,39 +135,39 @@ exports.findOne = (req, res) => {
     });
 };
 
-// Find assigned course for a specific course
-exports.findByCourseId = (req, res) => {
-  const courseId = req.params.courseId;
-  logger.debug(`Finding assigned course for courseId: ${courseId}`);
+// Find assigned course for a specific section
+exports.findBySectionId = (req, res) => {
+  const sectionId = req.params.sectionId;
+  logger.debug(`Finding assigned course for sectionId: ${sectionId}`);
 
   AssignedCourse.findOne({
-    where: { courseId: courseId },
+    where: { sectionId: sectionId },
     include: [
       { 
-        model: Course, 
-        as: "course",
-        include: [{ model: Term, as: "term" }]
+        model: Section, 
+        as: "section",
+        include: [{ model: Semester, as: "semester" }]
       },
       { 
-        model: Course, 
-        as: "assignedCourse",
-        include: [{ model: Term, as: "term" }]
+        model: Section, 
+        as: "assignedSection",
+        include: [{ model: Semester, as: "semester" }]
       }
     ]
   })
     .then((data) => {
       if (data) {
-        logger.info(`AssignedCourse found for course: ${courseId}`);
+        logger.info(`AssignedCourse found for section: ${sectionId}`);
         res.send(data);
       } else {
-        logger.debug(`No assigned course found for course: ${courseId}`);
+        logger.debug(`No assigned course found for section: ${sectionId}`);
         res.send(null);
       }
     })
     .catch((err) => {
-      logger.error(`Error retrieving assigned course for course ${courseId}: ${err.message}`);
+      logger.error(`Error retrieving assigned course for section ${sectionId}: ${err.message}`);
       res.status(500).send({
-        message: "Error retrieving AssignedCourse for course=" + courseId,
+        message: "Error retrieving AssignedCourse for section=" + sectionId,
       });
     });
 };
@@ -222,31 +233,31 @@ exports.delete = (req, res) => {
 };
 
 // Delete assigned course by courseId
-exports.deleteByCourseId = (req, res) => {
-  const courseId = req.params.courseId;
+exports.deleteBySectionId = (req, res) => {
+  const sectionId = req.params.sectionId;
 
-  logger.debug(`Attempting to delete assigned course for courseId: ${courseId}`);
+  logger.debug(`Attempting to delete assigned course for sectionId: ${sectionId}`);
 
   AssignedCourse.destroy({
-    where: { courseId: courseId },
+    where: { sectionId: sectionId },
   })
     .then((num) => {
       if (num >= 1) {
-        logger.info(`AssignedCourse(s) deleted successfully for course: ${courseId}`);
+        logger.info(`AssignedCourse(s) deleted successfully for section: ${sectionId}`);
         res.send({
           message: "AssignedCourse was deleted successfully!",
         });
       } else {
-        logger.warn(`Cannot delete assigned course for courseId ${courseId} - not found`);
+        logger.warn(`Cannot delete assigned course for sectionId ${sectionId} - not found`);
         res.send({
-          message: `Cannot delete AssignedCourse for courseId=${courseId}. Maybe AssignedCourse was not found!`,
+          message: `Cannot delete AssignedCourse for sectionId=${sectionId}. Maybe AssignedCourse was not found!`,
         });
       }
     })
     .catch((err) => {
-      logger.error(`Error deleting assigned course for courseId ${courseId}: ${err.message}`);
+      logger.error(`Error deleting assigned course for sectionId ${sectionId}: ${err.message}`);
       res.status(500).send({
-        message: "Could not delete AssignedCourse for courseId=" + courseId,
+        message: "Could not delete AssignedCourse for sectionId=" + sectionId,
       });
     });
 };

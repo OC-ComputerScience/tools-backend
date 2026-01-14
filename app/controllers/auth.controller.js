@@ -7,6 +7,7 @@ import logger from "../config/logger.js";
 
 const User = db.user;
 const Session = db.session;
+const Role = db.role;
 const Op = db.Sequelize.Op;
 
 let googleUser = {};
@@ -66,11 +67,50 @@ exports.login = async (req, res) => {
     where: {
       email: email,
     },
+    include: [
+      {
+        model: Role,
+        as: "roles",
+        attributes: ["id", "name", "description"],
+        through: { attributes: [] }, // Exclude join table attributes
+      },
+    ],
   })
-    .then((data) => {
+    .then(async (data) => {
       if (data != null) {
         user = data.dataValues;
         logger.debug(`Existing user found: ${email}`);
+        
+        // If existing user has no roles, assign Faculty role (id=2)
+        if (!data.roles || data.roles.length === 0) {
+          logger.info(`Existing user ${user.id} has no roles, assigning Faculty role (id=2)`);
+          try {
+            const facultyRole = await Role.findByPk(2);
+            if (facultyRole) {
+              await data.setRoles([facultyRole]);
+              logger.info(`Faculty role assigned successfully to user ${user.id}`);
+              // Reload user with roles
+              const userWithRoles = await User.findByPk(user.id, {
+                include: [
+                  {
+                    model: Role,
+                    as: "roles",
+                    attributes: ["id", "name", "description"],
+                    through: { attributes: [] },
+                  },
+                ],
+              });
+              user.roles = userWithRoles.roles || [];
+            } else {
+              logger.warn(`Faculty role (id=2) not found in database`);
+            }
+          } catch (roleErr) {
+            logger.error(`Error assigning Faculty role to existing user: ${roleErr.message}`);
+          }
+        } else {
+          // User already has roles, include them
+          user.roles = data.roles;
+        }
       } else {
         user = {
           fName: firstName,
@@ -91,9 +131,38 @@ exports.login = async (req, res) => {
     logger.info(`Creating new user: ${user.email}`);
     
     await User.create(user)
-      .then((data) => {
+      .then(async (data) => {
         user = data.dataValues;
         logger.info(`User registered successfully: ${user.id} - ${user.email}`);
+        
+        // Ensure new user has Faculty role (id=2) if they don't have any roles
+        try {
+          const userWithRoles = await User.findByPk(user.id, {
+            include: [
+              {
+                model: Role,
+                as: "roles",
+                attributes: ["id", "name", "description"],
+                through: { attributes: [] },
+              },
+            ],
+          });
+          
+          if (!userWithRoles.roles || userWithRoles.roles.length === 0) {
+            logger.info(`Assigning Faculty role (id=2) to new user: ${user.id}`);
+            const facultyRole = await Role.findByPk(2);
+            if (facultyRole) {
+              await userWithRoles.setRoles([facultyRole]);
+              logger.info(`Faculty role assigned successfully to user ${user.id}`);
+              // Update user object to include roles
+              user.roles = [facultyRole];
+            } else {
+              logger.warn(`Faculty role (id=2) not found in database`);
+            }
+          }
+        } catch (roleErr) {
+          logger.error(`Error assigning Faculty role to new user: ${roleErr.message}`);
+        }
       })
       .catch((err) => {
         logger.error(`Error creating user: ${err.message}`);
@@ -105,9 +174,41 @@ exports.login = async (req, res) => {
     user.lName = lastName;
   
     await User.update(user, { where: { id: user.id } })
-      .then((num) => {
+      .then(async (num) => {
         if (num == 1) {
           logger.info(`Updated user name: ${user.id}`);
+          
+          // Check if existing user has any roles, if not assign Faculty role (id=2)
+          try {
+            const userWithRoles = await User.findByPk(user.id, {
+              include: [
+                {
+                  model: Role,
+                  as: "roles",
+                  attributes: ["id", "name", "description"],
+                  through: { attributes: [] },
+                },
+              ],
+            });
+            
+            if (!userWithRoles.roles || userWithRoles.roles.length === 0) {
+              logger.info(`Assigning Faculty role (id=2) to existing user: ${user.id}`);
+              const facultyRole = await Role.findByPk(2);
+              if (facultyRole) {
+                await userWithRoles.setRoles([facultyRole]);
+                logger.info(`Faculty role assigned successfully to user ${user.id}`);
+                // Update user object to include roles
+                user.roles = [facultyRole];
+              } else {
+                logger.warn(`Faculty role (id=2) not found in database`);
+              }
+            } else {
+              // Update user object with existing roles
+              user.roles = userWithRoles.roles;
+            }
+          } catch (roleErr) {
+            logger.error(`Error checking/assigning roles for existing user: ${roleErr.message}`);
+          }
         } else {
           logger.warn(`Cannot update user with id=${user.id}. User not found or empty body`);
         }
@@ -152,13 +253,33 @@ exports.login = async (req, res) => {
             });
           session = {};
         } else {
+          // Fetch user with roles for the session
+          const userWithRoles = await User.findByPk(user.id, {
+            include: [
+              {
+                model: Role,
+                as: "roles",
+                attributes: ["id", "name", "description"],
+                through: { attributes: [] },
+              },
+            ],
+          });
+          
+          if (!userWithRoles) {
+            logger.error(`User not found with id: ${user.id}`);
+            res.status(404).send({ message: "User not found" });
+            return;
+          }
+          
           let userInfo = {
-            email: user.email,
-            fName: user.fName,
-            lName: user.lName,
-            userId: user.id,
-            isAdmin: user.isAdmin,
+            email: userWithRoles.email,
+            fName: userWithRoles.fName,
+            lName: userWithRoles.lName,
+            userId: userWithRoles.id,
+            id: userWithRoles.id,
+            isAdmin: userWithRoles.isAdmin,
             token: session.token,
+            roles: userWithRoles.roles || [],
           };
           logger.info(`Valid session found for ${email}, reusing existing session`);
           res.send(userInfo);
@@ -192,14 +313,34 @@ exports.login = async (req, res) => {
     logger.debug(`Session created with expiration: ${tempExpirationDate}`);
 
     await Session.create(newSession)
-      .then(() => {
+      .then(async () => {
+        // Fetch user with roles
+        const userWithRoles = await User.findByPk(user.id, {
+          include: [
+            {
+              model: Role,
+              as: "roles",
+              attributes: ["id", "name", "description"],
+              through: { attributes: [] },
+            },
+          ],
+        });
+        
+        if (!userWithRoles) {
+          logger.error(`User not found with id: ${user.id} after creating session`);
+          res.status(404).send({ message: "User not found" });
+          return;
+        }
+        
         let userInfo = {
-          email: user.email,
-          fName: user.fName,
-          lName: user.lName,
-          userId: user.id,
-          isAdmin: user.isAdmin,
+          email: userWithRoles.email,
+          fName: userWithRoles.fName,
+          lName: userWithRoles.lName,
+          userId: userWithRoles.id,
+          id: userWithRoles.id,
+          isAdmin: userWithRoles.isAdmin,
           token: token,
+          roles: userWithRoles.roles || [],
         };
         logger.info(`Login successful for user: ${user.email}`);
         res.send(userInfo);

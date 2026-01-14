@@ -7,7 +7,8 @@
   "scripts": {
     "test": "jest --",
     "start": "node server.js",
-    "bundle": "mkdir deploy && cp -r app server.js package.json package-lock.json courseimport-backend.service .env deploy"
+    "bundle": "mkdir deploy && cp -r app server.js package.json package-lock.json courseimport-backend.service .env deploy",
+    "winbundle": "md deploy && xcopy app deploy\\app /s /h /i /y /e && copy server.js deploy && copy *.json deploy && copy .env deploy"
   },
   "keywords": [
     "node.js",
@@ -17,20 +18,22 @@
   "author": "cs",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
     "express-winston": "^4.2.0",
-    "googleapis": "^169.0.0",
-    "jest": "^30.2.0",
+    "googleapis": "^144.0.0",
+    "jest": "^29.7.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
+    "multer": "^2.0.2",
     "mysql2": "^3.16.0",
-    "parser": "^0.1.4",
-    "sequelize": "^6.19.0",
-    "supertest": "^7.1.4",
-    "winston": "^3.11.0",
+    "pdf-parse": "^1.1.1",
+    "sequelize": "^6.37.5",
+    "supertest": "^7.0.0",
+    "tesseract.js": "^7.0.0",
+    "winston": "^3.15.0",
     "winston-daily-rotate-file": "^5.0.0"
   }
 }
-

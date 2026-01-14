@@ -1,17 +1,24 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Term = SequelizeInstance.define("term", {
+const MenuOption = SequelizeInstance.define("menuOption", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
-  termName: {
+  option: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  routeName: {
     type: Sequelize.STRING,
     allowNull: false,
   },
 });
 
-export default Term;
+export default MenuOption;
+
+
+
 

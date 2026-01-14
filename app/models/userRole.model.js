@@ -1,26 +1,24 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const AssignedCourse = SequelizeInstance.define("assignedCourse", {
+const UserRole = SequelizeInstance.define("userRole", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
-  sectionId: {
+  userId: {
     type: Sequelize.INTEGER,
     allowNull: false,
   },
-  assignedSectionId: {
+  roleId: {
     type: Sequelize.INTEGER,
-    allowNull: true,
-  },
-  notAssignmentNeeded: {
-    type: Sequelize.BOOLEAN,
     allowNull: false,
-    defaultValue: false,
   },
 });
 
-export default AssignedCourse;
+export default UserRole;
+
+
+
 

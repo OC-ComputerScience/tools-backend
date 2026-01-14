@@ -1,28 +1,25 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const Course = SequelizeInstance.define("course", {
+const Role = SequelizeInstance.define("role", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true,
   },
-  code: {
+  name: {
     type: Sequelize.STRING,
     allowNull: false,
-  },
-  number: {
-    type: Sequelize.STRING,
-    allowNull: false,
+    unique: true,
   },
   description: {
     type: Sequelize.STRING,
     allowNull: false,
   },
-  hours: {
-    type: Sequelize.INTEGER,
-    allowNull: true,
-  },
 });
 
-export default Course;
+export default Role;
+
+
+
+
