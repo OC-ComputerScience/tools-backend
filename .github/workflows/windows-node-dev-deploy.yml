@@ -19,6 +19,7 @@ jobs:
       CLIENT_SECRET: ${{secrets.CLIENT_SECRET}}
       PORT: ${{secrets.PORT}}
       GEMINI_API_KEY: ${{secrets.GEMINI_API_KEY}}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,15 +29,15 @@ jobs:
           node-version: "20.11.0"
 
       - run: |
+          "DB_HOST=${{env.DB_HOST}}" | Out-File -FilePath .env -Encoding utf8
+          "DB_PW=${{env.DB_PW}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "DB_USER=${{env.DB_USER}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "DB_NAME=${{env.DB_NAME}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "CLIENT_ID=${{env.CLIENT_ID}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "CLIENT_SECRET=${{env.CLIENT_SECRET}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "PORT=${{env.PORT}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "GEMINI_API_KEY=${{env.GEMINI_API_KEY}}" | Out-File -FilePath .env -Append -Encoding utf8
 
-          echo DB_HOST=${{env.DB_HOST}} > .env
-          echo DB_PW=${{env.DB_PW}} >> .env
-          echo DB_USER=${{env.DB_USER}} >> .env
-          echo DB_NAME=${{env.DB_NAME}} >> .env
-          echo CLIENT_ID=${{env.CLIENT_ID}} >> .env
-          echo CLIENT_SECRET=${{env.CLIENT_SECRET}} >> .env
-          echo PORT=${{env.PORT}} >> .env
-          echo GEMINI_API_KEY=${{env.GEMINI_API_KEY}} >> .env
       - run: npm run winbundle
       - name: Copy folder content recursively to remote
         uses: garygrossgarten/github-action-scp@release
@@ -44,7 +45,7 @@ jobs:
           local: deploy/
           remote: c:/nodeapps/tools-backend
           recursive: true
-          host: "flightplandev.oc.edu"
+          host: "toolsdev.oc.edu"
           username: "david.north"
           privateKey: ${{ secrets.DEV_WIN_SERVER_SSH_KEY  }}
           password: ${{ secrets.PASSWORD }}
@@ -53,6 +54,6 @@ jobs:
         uses: garygrossgarten/github-action-ssh@release
         with:
           command: '.\deploy-tools-backend'
-          host: "flightplandev.oc.edu"
+          host: "toolsdev.oc.edu"
           username: "david.north"
           privateKey: ${{ secrets.DEV_WIN_SERVER_SSH_KEY  }}
