@@ -460,14 +460,18 @@ exports.importCSV = async (req, res) => {
             continue;
           }
 
-          // Parse course number (first 9 characters) and section number (starting at position 11)
-          if (shortName.length < 11) {
-            errors.push(`Row ${i + 1}: short_name must be at least 11 characters long to parse course number and section`);
+          // Parse course number and section number by splitting on the last dash
+          // Format: PREFIX-NUMBER(-SUFFIX)-SECTION
+          // Examples: CMSC-1111-01 -> course: CMSC-1111, section: 01
+          //           CMSC-1111L-01 -> course: CMSC-1111L, section: 01
+          const lastDashIndex = shortName.lastIndexOf('-');
+          if (lastDashIndex === -1 || lastDashIndex === 0 || lastDashIndex === shortName.length - 1) {
+            errors.push(`Row ${i + 1}: short_name must contain at least one dash to separate course number and section: ${shortName}`);
             continue;
           }
 
-          const courseNumber = shortName.substring(0, 9).trim();
-          const courseSection = shortName.substring(10).trim(); // Position 11 = index 10
+          const courseNumber = shortName.substring(0, lastDashIndex).trim();
+          const courseSection = shortName.substring(lastDashIndex + 1).trim();
 
           if (!courseNumber || !courseSection) {
             errors.push(`Row ${i + 1}: Could not parse course number or section from short_name: ${shortName}`);

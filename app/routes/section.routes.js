@@ -25,6 +25,4 @@ router.put("/:id", [authenticate], sections.update);
 router.delete("/:id", [authenticate], sections.delete);
 
 // Import sections from CSV
-router.post("/import", [authenticate], sections.importCSV);
-
-export default router;
+router.post("/import", [authenticate], sections.importCSV);export default router;
