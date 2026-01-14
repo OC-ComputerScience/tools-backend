@@ -248,6 +248,47 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Try to add notAssignmentNeeded column to assigned_courses table and make assignedSectionId nullable
+      const assignedCourseTableName = db.assignedCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignedCourseTableName}
+        ADD COLUMN notAssignmentNeeded BOOLEAN DEFAULT FALSE,
+        MODIFY COLUMN assignedSectionId INT NULL
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("notAssignmentNeeded column already exists in assigned_courses table, skipping...");
+          // Try to modify assignedSectionId to be nullable if not already
+          return db.sequelize.query(`
+            ALTER TABLE ${assignedCourseTableName}
+            MODIFY COLUMN assignedSectionId INT NULL
+          `).catch((modifyErr) => {
+            if (modifyErr.message && (
+              modifyErr.message.includes("doesn't exist") ||
+              modifyErr.message.includes("Duplicate")
+            )) {
+              logger.info("assignedSectionId column modification skipped (may already be nullable)");
+              return Promise.resolve();
+            }
+            logger.warn("Could not modify assignedSectionId column:", modifyErr.message);
+            return Promise.resolve();
+          });
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Assigned_courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add notAssignmentNeeded column to assigned_courses table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       app.listen(PORT, () => {
         logger.info(`Server is running on port ${PORT}`);
       });

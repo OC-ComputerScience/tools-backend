@@ -13,7 +13,12 @@ const AssignedCourse = SequelizeInstance.define("assignedCourse", {
   },
   assignedSectionId: {
     type: Sequelize.INTEGER,
+    allowNull: true,
+  },
+  notAssignmentNeeded: {
+    type: Sequelize.BOOLEAN,
     allowNull: false,
+    defaultValue: false,
   },
 });
 

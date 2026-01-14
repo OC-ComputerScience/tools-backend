@@ -26,4 +26,7 @@ router.put("/:id", [authenticate], universityCourseController.update);
 // Delete a UniversityCourse
 router.delete("/:id", [authenticate], universityCourseController.delete);
 
+// Import UniversityCourses from CSV
+router.post("/import", [authenticate], universityCourseController.importCSV);
+
 export default router;

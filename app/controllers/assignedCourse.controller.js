@@ -9,20 +9,31 @@ const exports = {};
 
 // Create and Save a new AssignedCourse
 exports.create = (req, res) => {
-  if (!req.body.sectionId || !req.body.assignedSectionId) {
+  if (!req.body.sectionId) {
     logger.warn('AssignedCourse creation attempt with missing required fields');
     res.status(400).send({
-      message: "Section ID and Assigned Section ID are required!",
+      message: "Section ID is required!",
+    });
+    return;
+  }
+
+  // If notAssignmentNeeded is true, assignedSectionId can be null
+  // Otherwise, assignedSectionId is required
+  if (!req.body.notAssignmentNeeded && !req.body.assignedSectionId) {
+    logger.warn('AssignedCourse creation attempt with missing assignedSectionId when notAssignmentNeeded is false');
+    res.status(400).send({
+      message: "Assigned Section ID is required when not marking as 'not assignment needed'!",
     });
     return;
   }
 
   const assignedCourse = {
     sectionId: req.body.sectionId,
-    assignedSectionId: req.body.assignedSectionId,
+    assignedSectionId: req.body.notAssignmentNeeded ? null : req.body.assignedSectionId,
+    notAssignmentNeeded: req.body.notAssignmentNeeded || false,
   };
 
-  logger.debug(`Creating assigned course: ${assignedCourse.sectionId} -> ${assignedCourse.assignedSectionId}`);
+  logger.debug(`Creating assigned course: ${assignedCourse.sectionId} -> ${assignedCourse.assignedSectionId || 'N/A (not assignment needed)'}`);
 
   AssignedCourse.create(assignedCourse)
     .then((data) => {
@@ -50,7 +61,7 @@ exports.findAll = (req, res) => {
     // Simple query for counting all assigned courses
     AssignedCourse.findAll({
       where: condition,
-      attributes: ['id', 'sectionId', 'assignedSectionId'],
+      attributes: ['id', 'sectionId', 'assignedSectionId', 'notAssignmentNeeded'],
       raw: false
     })
       .then((data) => {
