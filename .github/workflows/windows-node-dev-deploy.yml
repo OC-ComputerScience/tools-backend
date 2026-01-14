@@ -18,7 +18,7 @@ jobs:
       CLIENT_ID: ${{secrets.CLIENT_ID}}
       CLIENT_SECRET: ${{secrets.CLIENT_SECRET}}
       PORT: ${{secrets.PORT}}
-
+      GEMINI_API_KEY: ${{secrets.GEMINI_API_KEY}}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,9 +36,8 @@ jobs:
           echo CLIENT_ID=${{env.CLIENT_ID}} >> .env
           echo CLIENT_SECRET=${{env.CLIENT_SECRET}} >> .env
           echo PORT=${{env.PORT}} >> .env
-
+          echo GEMINI_API_KEY=${{env.GEMINI_API_KEY}} >> .env
       - run: npm run winbundle
-
       - name: Copy folder content recursively to remote
         uses: garygrossgarten/github-action-scp@release
         with:
