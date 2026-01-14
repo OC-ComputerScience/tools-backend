@@ -201,8 +201,12 @@ class OCRService {
       - You MUST apply the most recent semester header found to all subsequent courses until a new semester header is encountered.
       - If a course does not have an explicit semester next to it, use the last seen semester header.
       - Look for dates or term codes if explicit headers are missing.
-      - **STRICTLY IGNORE** any course codes or grades found in "Current", "Retention", "Cumulative", "Totals", or "Points" sections. These are summary statistics and NOT the actual course list.
-      - **DEDUPLICATE** courses: If the same course number appears multiple times, **ONLY keep the entry that has a valid semester**. discard any entries with null semesters if a version with a semester exists.
+      - **CRITICAL SECTION FILTERING**:
+        * **STRICTLY IGNORE** all courses that appear after section titles like "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:", "TRANSFER CREDIT:", or similar transfer credit section headers. These courses are from other institutions and should NOT be included in the courses array.
+        * **ONLY INCLUDE** courses that appear after section titles like "INSTITUTION CREDIT:", "INSTITUTIONAL CREDIT:", or similar institutional credit section headers. These are courses taken at the main institution.
+        * If you see a section header indicating transfer credit, skip all courses in that section until you encounter a new section header.
+        * If you see a section header indicating institutional credit, include all courses in that section.
+        * If no explicit section headers are found, use your best judgment based on context, but prioritize institutional credit sections.
       - **STRICTLY IGNORE** any course codes or grades found in "Current", "Retention", "Cumulative", "Totals", or "Points" sections. These are summary statistics and NOT the actual course list.
       - **DEDUPLICATE** courses: If the same course number appears multiple times, **ONLY keep the entry that has a valid semester**. discard any entries with null semesters if a version with a semester exists.
       - If a course appears at the very beginning without a header, check if it's a duplicate of a course listed later with a header. If so, discard the first one.
