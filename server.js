@@ -144,6 +144,32 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Try to add permanentAssignment column to transcript_courses table if it doesn't exist
+      const transcriptCourseTableName = db.TranscriptCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${transcriptCourseTableName}
+        ADD COLUMN permanentAssignment BOOLEAN DEFAULT FALSE
+      `).catch((err) => {
+        // If column already exists, that's fine - continue
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("permanentAssignment column already exists in transcript_courses table, skipping...");
+          return Promise.resolve();
+        }
+        // If table doesn't exist, that's unexpected but log and continue
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Transcript_courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        // For other errors, log but don't fail
+        logger.warn("Could not add permanentAssignment column to transcript_courses table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       // Try to add sectionCode column to sections table if it doesn't exist
       const sectionTableName = db.section.getTableName();
       return db.sequelize.query(`

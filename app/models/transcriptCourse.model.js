@@ -47,6 +47,11 @@ const TranscriptCourse = SequelizeInstance.define("transcript", {
     type: Sequelize.DATE,
     allowNull: true,
   },
+  permanentAssignment: {
+    type: Sequelize.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   timestamps: true,
   tableName: "transcript_courses",
