@@ -17,6 +17,13 @@ router.get(
   transcriptCourseController.getByTranscriptId
 );
 
+// Match generic courses for a transcript
+router.post(
+  "/transcript/:transcriptId/match-generics",
+  [authenticate],
+  transcriptCourseController.matchGenericCourses
+);
+
 // Get a single TranscriptCourse by id
 router.get("/:id", [authenticate], transcriptCourseController.findOne);
 
