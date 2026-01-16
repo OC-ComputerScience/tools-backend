@@ -22,6 +22,7 @@ import UniversityTranscript from "./universityTranscript.model.js";
 import TranscriptCourse from "./transcriptCourse.model.js";
 import Semester from "./semester.model.js";
 import Catalog from "./catalog.model.js";
+import PrefixKeyword from "./prefixKeyword.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -46,6 +47,7 @@ db.UniversityTranscript = UniversityTranscript;
 db.TranscriptCourse = TranscriptCourse;
 db.Semester = Semester;
 db.Catalog = Catalog;
+db.PrefixKeyword = PrefixKeyword;
 
 // Foreign key for session
 db.user.hasMany(
