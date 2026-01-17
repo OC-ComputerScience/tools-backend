@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { createRequire } from "module";
+import logger from "../config/logger.js";
 
 // Use createRequire to load pdf-parse
 // Note: pdf-parse versions may export differently
@@ -202,11 +203,21 @@ class OCRService {
       - If a course does not have an explicit semester next to it, use the last seen semester header.
       - Look for dates or term codes if explicit headers are missing.
       - **CRITICAL SECTION FILTERING**:
-        * **STRICTLY IGNORE** all courses that appear after section titles like "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:", "TRANSFER CREDIT:", or similar transfer credit section headers. These courses are from other institutions and should NOT be included in the courses array.
-        * **ONLY INCLUDE** courses that appear after section titles like "INSTITUTION CREDIT:", "INSTITUTIONAL CREDIT:", or similar institutional credit section headers. These are courses taken at the main institution.
-        * If you see a section header indicating transfer credit, skip all courses in that section until you encounter a new section header.
-        * If you see a section header indicating institutional credit, include all courses in that section.
-        * If no explicit section headers are found, use your best judgment based on context, but prioritize institutional credit sections.
+        * **TYPE 1: ADVANCED PLACEMENT OR CLEP** (MUST EXTRACT ALL COURSES):
+          - **RECOGNIZE THESE HEADERS**: "ADVANCED PLACEMENT", "ADVANCED PLACEMENT CREDIT", "AP", "AP CREDIT", "AP EXAM", "ADVANCED PLACEMENT EXAM", "ADVANCED PLACEMENT (AP)", "PRIOR LEARNING: ADVANCED PLACEMENT", "PRIOR LEARNING ADVANCED PLACEMENT", "PRIOR LEARNING", "CLEP", "CLEP CREDIT", "CLEP EXAM", "COLLEGE LEVEL EXAMINATION PROGRAM", or any header containing "ADVANCED PLACEMENT", "PRIOR LEARNING", or "CLEP"
+          - **MANDATORY**: Extract ALL courses that appear after these headers until you encounter a NEW section header
+          - These courses may NOT have semesters, grades, or traditional course numbers - this is EXPECTED
+          - Use the course name/description as the courseNumber if no number exists
+          - Use null for semester if not provided (semester will be assigned automatically to the earliest semester)
+          - Extract grade "S" (Satisfactory) correctly - OCR often mistakes it for "C"
+          - **CRITICAL**: After the AP/CLEP section ends (when you see a new section header like a semester or "INSTITUTION CREDIT"), resume extracting courses normally from that new section. The AP/CLEP section does NOT block subsequent courses from being extracted.
+        * **TYPE 2: TRANSFER CREDIT** (STRICTLY IGNORE ALL COURSES):
+          - **STRICTLY IGNORE** all courses that appear after section titles like "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:", "TRANSFER CREDIT:", "TRANSFERRED CREDIT", "ACCEPTED CREDIT", or similar transfer credit section headers. These courses are from other institutions and should NOT be included in the courses array.
+          - If you see a section header indicating transfer credit, skip all courses in that section until you encounter a new section header.
+        * **TYPE 3: INSTITUTIONAL CREDIT** (MUST INCLUDE ALL COURSES):
+          - **ONLY INCLUDE** courses that appear after section titles like "INSTITUTION CREDIT:", "INSTITUTIONAL CREDIT:", "CREDIT EARNED AT [INSTITUTION NAME]", or similar institutional credit section headers. These are courses taken at the main institution.
+          - If you see a section header indicating institutional credit, include all courses in that section.
+        * **DEFAULT**: If no explicit section headers are found, use your best judgment based on context, but prioritize institutional credit sections.
       - **STRICTLY IGNORE** any course codes or grades found in "Current", "Retention", "Cumulative", "Totals", or "Points" sections. These are summary statistics and NOT the actual course list.
       - **DEDUPLICATE** courses: If the same course number appears multiple times, **ONLY keep the entry that has a valid semester**. discard any entries with null semesters if a version with a semester exists.
       - If a course appears at the very beginning without a header, check if it's a duplicate of a course listed later with a header. If so, discard the first one.
@@ -424,6 +435,53 @@ class OCRService {
             }
           }
         });
+
+        // Post-processing: Assign earliest semester to AP/CLEP courses that don't have semesters
+        // First, find all AP/CLEP courses that need semesters
+        const apClepCourses = parsedData.courses.filter((course) => {
+          // Check if this is an AP/CLEP course
+          const courseNum = (course.courseNumber || '').toUpperCase();
+          const courseName = (course.courseName || '').toUpperCase();
+          const isAPOrCLEP = 
+            courseNum.includes('AP ') || 
+            courseNum.includes('CLEP') ||
+            courseNum.startsWith('AP') ||
+            courseName.includes('ADVANCED PLACEMENT') ||
+            courseName.includes('CLEP') ||
+            courseNum.includes('ADVANCED PLACEMENT') ||
+            courseName.includes('PRIOR LEARNING');
+          
+          // Only include AP/CLEP courses that don't have a semester
+          return isAPOrCLEP && (!course.semester || !course.semester.trim());
+        });
+        
+        // If there are AP/CLEP courses without semesters, find the earliest semester
+        if (apClepCourses.length > 0) {
+          // Collect all semesters with their years to find the earliest
+          const allSemestersWithDates = [];
+          parsedData.courses.forEach((c) => {
+            if (c.semester && c.semester.trim()) {
+              // Try to extract year from semester string (e.g., "Fall 2022" -> 2022)
+              const yearMatch = c.semester.match(/\b(\d{4})\b/);
+              if (yearMatch) {
+                const year = parseInt(yearMatch[1]);
+                allSemestersWithDates.push({ semester: c.semester.trim(), year });
+              }
+            }
+          });
+          
+          // Sort by year to find the earliest semester
+          if (allSemestersWithDates.length > 0) {
+            allSemestersWithDates.sort((a, b) => a.year - b.year);
+            const earliestSemester = allSemestersWithDates[0].semester;
+            
+            // Assign the earliest semester to all AP/CLEP courses without semesters
+            apClepCourses.forEach((course) => {
+              course.semester = earliestSemester;
+              logger.debug(`Assigned earliest semester "${earliestSemester}" to AP/CLEP course: ${course.courseNumber || course.courseName || 'Unknown'}`);
+            });
+          }
+        }
 
         // Filter out courses from other universities
         // If the semester field contains a university name that's different from the main university,

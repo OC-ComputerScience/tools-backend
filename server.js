@@ -170,6 +170,26 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Modify semesterId column in transcript_courses table to allow NULL
+      const transcriptCourseTableName = db.TranscriptCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${transcriptCourseTableName}
+        MODIFY COLUMN semesterId INT NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("doesn't exist") ||
+          err.message.includes("Duplicate") ||
+          err.message.includes("already nullable") || // MySQL specific message if already nullable
+          err.message.includes("already exists")
+        )) {
+          logger.info("semesterId column modification skipped (may already be nullable)");
+          return Promise.resolve();
+        }
+        logger.warn("Could not modify semesterId column:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       // Try to add sectionCode column to sections table if it doesn't exist
       const sectionTableName = db.section.getTableName();
       return db.sequelize.query(`
