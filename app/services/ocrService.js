@@ -167,6 +167,23 @@ class OCRService {
     const prompt = `
       You are a data extraction assistant. Your task is to extract structured transcript data from the following raw text extracted from a PDF.
       
+<<<<<<< Updated upstream
+=======
+      **CRITICAL EXTRACTION RULES - READ FIRST**:
+      1. **EXTRACT ALL COURSES** - Do not skip any courses, including:
+         - The FIRST course at the top of the SECOND column (even if it seems to have no semester)
+         - ALL Advanced Placement (AP) and CLEP courses (even if they have no semester, grade, or traditional course numbers)
+      2. **ADVANCED PLACEMENT AND CLEP COURSES**:
+         - **MUST EXTRACT** all courses that appear under "ADVANCED PLACEMENT", "AP", "ADVANCED PLACEMENT CREDIT", "AP CREDIT", "CLEP", "CLEP CREDIT", or similar headers.
+         - These courses may NOT have semesters - use null for semester if not provided.
+         - These courses may use "S" (Satisfactory) as a grade - extract it correctly, not "C".
+         - Extract them even if they don't have traditional course numbers - use the course name/description.
+      3. **FIRST COURSE IN SECOND COLUMN**:
+         - MUST be extracted even if it appears to have no semester
+         - Extract it with whatever grade appears next to it (or null if no grade)
+         - Do NOT skip it
+      
+>>>>>>> Stashed changes
       Please extract:
       1. Student Name
       2. University Name
@@ -194,15 +211,56 @@ class OCRService {
 
       If a field is missing, use null or an empty string.
       For grades, try to normalize to letter grades or standard numeric values if possible, but keep original if unsure.
+<<<<<<< Updated upstream
+=======
+      - **CRITICAL: GRADE vs CREDIT HOURS DISTINCTION**:
+        * **DO NOT confuse credit hours with grades**. Credit hours are typically whole numbers or decimals like "3", "3.00", "4", "4.0" that appear in the credits/hours column.
+        * **Grades are typically single letters** (A, B, C, D, F, P, S) or letter grades with modifiers (A+, A-, B+, etc.).
+        * **Numeric grades are rare** - if you see a number like "3.00" or "4.0", it is MOST LIKELY a credit hour, NOT a grade, especially if it appears in a credits column or alongside course hours.
+        * When extracting grades, look for:
+          - Single letters (A, B, C, D, F, P, S)
+          - Letter grades with + or - (A+, A-, B+, B-, etc.)
+          - Very rarely, numeric grades like "4.0" (on a 4.0 scale) - but ONLY if it's clearly in the grade column and not the credits column
+        * **CRITICAL**: If you see a decimal number like "3.00", "4.0", "3.5" in what appears to be the credits/hours column, extract it as the "hours" field, NOT as the "grade" field. The grade field should be null or empty if no grade is shown.
+      - **CRITICAL: GRADE RECOGNITION - "S" GRADE FOR ADVANCED PLACEMENT AND CLEP**: 
+        * "S" is a valid grade meaning "Satisfactory" or "Pass", and is the MOST COMMON grade for Advanced Placement (AP) and CLEP courses.
+        * **CRITICAL - OCR ERROR PREVENTION**: OCR frequently mistakes "S" for "C" due to similar character shapes. You MUST be extremely careful when extracting grades for AP/CLEP courses.
+        * **MANDATORY RULE**: When you see ANY course under "ADVANCED PLACEMENT", "AP", or "CLEP" sections:
+          - If the grade looks like "C", it is ALMOST CERTAINLY "S" - verify carefully
+          - If the grade is ambiguous or unclear, default to "S" for AP/CLEP courses
+          - "S" (Satisfactory) is the standard grade for test credits like AP and CLEP
+        * **EXAMPLES**: 
+          - "AP English Literature" with grade looking like "C" → Should be extracted as "S"
+          - "CLEP History" with grade "C" → Should be extracted as "S"
+          - "Advanced Placement Calculus AB" with grade "C" → Should be extracted as "S"
+        * Valid grades include: A, A+, A-, B, B+, B-, C, C+, C-, D, D+, D-, F, P, P*, S. Numeric grades are rare and should only be used if clearly a grade (like "4.0" on a 4.0 scale) and NOT a credit hour.
+        * **CRITICAL EXTRACTION RULE**: When extracting grades for Advanced Placement or CLEP courses, if you see what looks like "C", assume it's "S" unless you are absolutely certain it's "C". The probability that an AP/CLEP course has grade "C" is very low - they almost always have grade "S" or no grade.
+        * When extracting grades, preserve the exact grade shown on the transcript, but prioritize "S" over "C" for AP/CLEP courses if uncertain.
+        * **For Advanced Placement and CLEP courses**: If no grade is explicitly shown, the grade should be "S" (Satisfactory) or null. Default to "S" if there's any indication of a grade.
+>>>>>>> Stashed changes
       For semester, try to normalize to "Semester Year" format (e.g., "Fall 2023").
 
       IMPORTANT:
       - Semester information is often a header above a list of courses (e.g., "Fall 2023", "2023FA", "Term: Spring 2024").
       - You MUST apply the most recent semester header found to all subsequent courses until a new semester header is encountered.
+<<<<<<< Updated upstream
       - If a course does not have an explicit semester next to it, use the last seen semester header.
+=======
+      - **CRITICAL - SEMESTER PERSISTENCE**: Semesters MUST carry forward across page boundaries. If you see a semester at the bottom of one page, it applies to courses at the top of the next page until a new semester is encountered.
+      - **MANDATORY RULE**: If a course does not have an explicit semester next to it, you MUST use the last seen semester header (even if it was on a previous page or in a previous column). NEVER leave a course without a semester if a semester was previously encountered.
+      - **CRITICAL - SECOND COLUMN SEMESTER ASSIGNMENT**: When processing two-column layouts, if the first column ends with a semester designation (even near the bottom), you MUST assign that semester to ALL courses in the second column that follow, starting from the VERY FIRST course at the top of the second column. This is not optional - it is mandatory.
+      - **CRITICAL - DO NOT PROPAGATE GRADES**: 
+        * **GRADES MUST NEVER BE COPIED OR PROPAGATED** from one course to another.
+        * Each course must have its **OWN UNIQUE GRADE** that appears directly next to it on the transcript.
+        * If a course doesn't have a grade visible next to it, the grade field **MUST be null or empty**.
+        * **DO NOT use the grade from a previous course** - even if they're in the same column or on the same page.
+        * **CRITICAL EXAMPLE**: If the first course in the second column doesn't have a visible grade, use null - DO NOT copy the grade from the last course in the first column.
+        * Semesters can be propagated across columns, but **GRADES CANNOT** - they must be extracted individually for each course.
+>>>>>>> Stashed changes
       - Look for dates or term codes if explicit headers are missing.
       - **CRITICAL SECTION FILTERING**:
         * **STRICTLY IGNORE** all courses that appear after section titles like "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:", "TRANSFER CREDIT:", or similar transfer credit section headers. These courses are from other institutions and should NOT be included in the courses array.
+<<<<<<< Updated upstream
         * **ONLY INCLUDE** courses that appear after section titles like "INSTITUTION CREDIT:", "INSTITUTIONAL CREDIT:", or similar institutional credit section headers. These are courses taken at the main institution.
         * If you see a section header indicating transfer credit, skip all courses in that section until you encounter a new section header.
         * If you see a section header indicating institutional credit, include all courses in that section.
@@ -210,6 +268,37 @@ class OCRService {
       - **STRICTLY IGNORE** any course codes or grades found in "Current", "Retention", "Cumulative", "Totals", or "Points" sections. These are summary statistics and NOT the actual course list.
       - **DEDUPLICATE** courses: If the same course number appears multiple times, **ONLY keep the entry that has a valid semester**. discard any entries with null semesters if a version with a semester exists.
       - If a course appears at the very beginning without a header, check if it's a duplicate of a course listed later with a header. If so, discard the first one.
+=======
+        * **MUST INCLUDE** courses that appear after section titles like:
+          - "INSTITUTION CREDIT:", "INSTITUTIONAL CREDIT:" (regular courses)
+          - "ADVANCED PLACEMENT", "ADVANCED PLACEMENT CREDIT", "AP CREDIT", "AP", "ADVANCED PLACEMENT (AP)", "AP EXAM", "ADVANCED PLACEMENT EXAM" (Advanced Placement test credits)
+          - "CLEP", "CLEP CREDIT", "CLEP EXAM", "COLLEGE LEVEL EXAMINATION PROGRAM" (CLEP test credits)
+        * These are courses taken at the main institution or test credits (AP/CLEP) accepted by the institution.
+        * **CRITICAL - ADVANCED PLACEMENT AND CLEP COURSES** (HIGHEST PRIORITY - EXTRACT ALL):
+          - **MANDATORY EXTRACTION**: If you see ANY of these keywords: "ADVANCED PLACEMENT", "AP", "ADVANCED PLACEMENT CREDIT", "AP CREDIT", "AP EXAM", "ADVANCED PLACEMENT EXAM", "ADVANCED PLACEMENT (AP)", "CLEP", "CLEP CREDIT", "CLEP EXAM", "COLLEGE LEVEL EXAMINATION PROGRAM" - you MUST extract EVERY course/item listed under that section. DO NOT skip any.
+          - **Extract courses even if**: they appear on the same line as the keyword, appear immediately after the keyword, don't have semesters, don't have traditional course numbers, have different formats, don't have grades, don't have credit hours.
+          - **EXAMPLES - Extract ALL of these**:
+            * "ADVANCED PLACEMENT" followed by "English Literature" → Extract as course
+            * "AP Calculus AB" → Extract as course  
+            * "CLEP History" → Extract as course
+            * "Advanced Placement\nEnglish Literature\n3.00" → Extract as course with hours 3.00
+            * Any list of courses appearing after "ADVANCED PLACEMENT" or "CLEP" header → Extract all courses
+          - **Semester**: Advanced Placement and CLEP courses typically DO NOT have semesters. Use null for semester - this is EXPECTED and NORMAL. DO NOT skip these courses because they lack semesters.
+          - **Grade**: These courses commonly use "S" (Satisfactory) as a grade. Extract "S" correctly - OCR often mistakes "S" for "C", so verify carefully. If no grade is shown, use null (NOT credit hours). DO NOT skip the course if no grade is visible.
+          - **Credit Hours**: Extract credit hours (like "3.00", "4.0") into the "hours" field, NOT the "grade" field. If no hours are shown, use null or 0.
+          - **Course Number**: If no traditional course number exists, use the course name/description as the courseNumber (e.g., "English Literature", "AP English Literature").
+          - **CRITICAL**: DO NOT skip, filter out, or discard Advanced Placement or CLEP courses for ANY reason - they must ALWAYS be included in the courses array, even if they're missing semesters, grades, or other fields.
+        * If you see a section header indicating transfer credit, skip all courses in that section until you encounter a new section header.
+        * If you see a section header indicating institutional credit, Advanced Placement (AP), or CLEP credit, include ALL courses in that section - extract every single course, even if some fields are missing.
+        * If no explicit section headers are found, use your best judgment based on context, but prioritize institutional credit sections and test credits (AP/CLEP).
+      - **STRICTLY IGNORE** any course codes or grades found in "Current", "Retention", "Cumulative", "Totals", or "Points" sections. These are summary statistics and NOT the actual course list.
+      - **DEDUPLICATE** courses: If the same course number appears multiple times, **ONLY keep the entry that has a valid semester**. discard any entries with null semesters if a version with a semester exists.
+      - **CRITICAL EXCEPTIONS TO DEDUPLICATION**:
+        * Advanced Placement (AP) and CLEP courses may NOT have semesters - this is NORMAL and EXPECTED. DO NOT filter out or discard AP/CLEP courses just because they have null semesters. Include ALL AP/CLEP courses regardless of whether they have a semester or not.
+        * DO NOT deduplicate courses that are in different columns or on different pages - they may be legitimate duplicates (retakes). Only deduplicate if they appear to be summary entries vs detail entries within the same section.
+        * The first course in the second column should NOT be removed by deduplication - even if it has no semester or seems similar to another course.
+      - If a course appears at the very beginning without a header, check if it's a duplicate of a course listed later with a header. If so, discard the first one. **EXCEPTION**: Do not discard AP/CLEP courses even if they appear without a header.
+>>>>>>> Stashed changes
       - **SEMESTER FORMAT**: Always try to extract both Term and Year (e.g., "Fall 2023", "Spring 2024").
       - If you see a code like "2023FA", "FA23", "F23", extract it as "Fall 2023".
       - If you see "2025SP", "SP25", "S25", extract it as "Spring 2025".
@@ -307,10 +396,112 @@ class OCRService {
         // Or just filter out null semesters if we are confident?
         // But what if a course genuinely has no semester?
 
+<<<<<<< Updated upstream
         // Strategy:
+=======
+        // Post-processing: Propagate semesters to courses without semesters
+        // This handles cases where courses at the top of a second column don't get the semester
+        // from the end of the first column
+        // Strategy: For each course without a semester, look at ALL previous courses first (backwards),
+        // and if none found, look at ALL following courses (forwards) to find the most recent semester
+        // Exception: Don't propagate semesters to AP/CLEP courses (they should remain null)
+        
+        parsedData.courses.forEach((course, index) => {
+          // Skip if course already has a semester
+          if (course.semester && course.semester.trim()) {
+            return;
+          }
+          
+          // Check if this is an AP/CLEP course - these should NOT get semesters
+          const courseNum = (course.courseNumber || '').toUpperCase();
+          const courseName = (course.courseName || '').toUpperCase();
+          const isAPOrCLEP = 
+            courseNum.includes('AP ') || 
+            courseNum.includes('CLEP') ||
+            courseNum.startsWith('AP') ||
+            courseName.includes('ADVANCED PLACEMENT') ||
+            courseName.includes('CLEP') ||
+            courseNum.includes('ADVANCED PLACEMENT');
+          
+          // Don't assign semesters to AP/CLEP courses
+          if (isAPOrCLEP) {
+            return;
+          }
+          
+          // First, look backwards through ALL previous courses to find the most recent semester
+          // This is the primary case: course at start of second column should get semester from end of first column
+          let foundSemester = null;
+          for (let j = index - 1; j >= 0; j--) {
+            const prevCourse = parsedData.courses[j];
+            if (prevCourse.semester && prevCourse.semester.trim()) {
+              // Found a semester in a previous course, use it
+              foundSemester = prevCourse.semester.trim();
+              break; // Stop looking once we find the most recent semester
+            }
+          }
+          
+          // If no semester found backwards, look forwards through following courses
+          // This handles edge cases where courses might be in unexpected order
+          if (!foundSemester) {
+            for (let j = index + 1; j < parsedData.courses.length; j++) {
+              const nextCourse = parsedData.courses[j];
+              if (nextCourse.semester && nextCourse.semester.trim()) {
+                // Found a semester in a following course, use it
+                foundSemester = nextCourse.semester.trim();
+                break;
+              }
+            }
+          }
+          
+          // Assign the found semester (if any)
+          if (foundSemester) {
+            course.semester = foundSemester;
+          }
+        });
+        
+        // Final pass: For any courses that STILL don't have a semester, find the most recent semester from ANY course
+        // This is a safety net for edge cases where courses are in unexpected order
+        const coursesStillWithoutSemester = parsedData.courses.filter((c) => {
+          if (c.semester && c.semester.trim()) {
+            return false; // Already has semester
+          }
+          // Check if it's an AP/CLEP course - don't assign semesters to these
+          const courseNum = (c.courseNumber || '').toUpperCase();
+          const courseName = (c.courseName || '').toUpperCase();
+          const isAPOrCLEP = 
+            courseNum.includes('AP ') || 
+            courseNum.includes('CLEP') ||
+            courseNum.startsWith('AP') ||
+            courseName.includes('ADVANCED PLACEMENT') ||
+            courseName.includes('CLEP') ||
+            courseNum.includes('ADVANCED PLACEMENT');
+          return !isAPOrCLEP; // Only include non-AP/CLEP courses without semesters
+        });
+        
+        // If there are still courses without semesters, assign the most recent semester found
+        if (coursesStillWithoutSemester.length > 0) {
+          // Find the most recent semester from any course that has one (last one found)
+          let mostRecentSemester = null;
+          for (const course of parsedData.courses) {
+            if (course.semester && course.semester.trim()) {
+              mostRecentSemester = course.semester.trim();
+            }
+          }
+          
+          // Assign the most recent semester to all courses without one (if we found one)
+          if (mostRecentSemester) {
+            coursesStillWithoutSemester.forEach((course) => {
+              course.semester = mostRecentSemester;
+            });
+          }
+        }
+
+        // Strategy: Now deduplicate courses
+>>>>>>> Stashed changes
         // 1. Identify courses with null semesters.
         // 2. If the same course number exists with a VALID semester, drop the null one.
         // 3. If the null one is the ONLY one, keep it.
+        // IMPORTANT: Be conservative - only remove clear duplicates, not courses that might be legitimate
 
         const coursesWithSemester = parsedData.courses.filter(
           (c) => c.semester
@@ -321,12 +512,34 @@ class OCRService {
 
         const keptCourses = [...coursesWithSemester];
 
-        coursesWithoutSemester.forEach((nullCourse) => {
-          // Check if this course number already exists in the "with semester" list
-          const exists = coursesWithSemester.some(
-            (c) => c.courseNumber === nullCourse.courseNumber
+        coursesWithoutSemester.forEach((nullCourse, index) => {
+          // Check if this is an AP/CLEP course - these should NOT be deduplicated
+          const courseNum = (nullCourse.courseNumber || '').toUpperCase();
+          const courseName = (nullCourse.courseName || '').toUpperCase();
+          const isAPOrCLEP = 
+            courseNum.includes('AP ') || 
+            courseNum.includes('CLEP') ||
+            courseNum.startsWith('AP') ||
+            courseName.includes('ADVANCED PLACEMENT') ||
+            courseName.includes('CLEP') ||
+            courseNum.includes('ADVANCED PLACEMENT');
+          
+          // AP/CLEP courses should always be kept, even if they have no semester or duplicate course numbers
+          if (isAPOrCLEP) {
+            keptCourses.push(nullCourse);
+            return;
+          }
+          
+          // Be conservative - only remove if there's an exact match (same course number)
+          // AND the match has a semester (indicating it's likely a summary vs detail issue)
+          const exactMatch = coursesWithSemester.find(
+            (c) => c.courseNumber && nullCourse.courseNumber && 
+                   c.courseNumber.trim().toUpperCase() === nullCourse.courseNumber.trim().toUpperCase()
           );
-          if (!exists) {
+          
+          // Only skip if we found an exact match with semester
+          // Otherwise keep the course (it might be the first course in second column or a legitimate course without semester)
+          if (!exactMatch) {
             keptCourses.push(nullCourse);
           }
         });
@@ -334,6 +547,8 @@ class OCRService {
         parsedData.courses = keptCourses;
 
         // Post-processing: Normalize semesters, fix course numbers, and fix course descriptions
+        // NOTE: We removed automatic grade correction to preserve exactly what the LLM extracted
+        // The LLM prompt should handle grade extraction correctly from the transcript
         parsedData.courses.forEach((course) => {
           // Fix missing spaces in course numbers (e.g., "BIB113" -> "BIB 113", "ED1601" -> "ED 1601")
           if (course.courseNumber) {
