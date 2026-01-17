@@ -274,6 +274,26 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Modify semesterId column in transcript_courses table to allow NULL
+      const transcriptCourseTableName = db.TranscriptCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${transcriptCourseTableName}
+        MODIFY COLUMN semesterId INT NULL
+      `).catch((err) => {
+        // If error is about column not existing or already nullable, that's fine
+        if (err.message && (
+          err.message.includes("doesn't exist") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("SemesterId column modification skipped (may already be nullable)");
+          return Promise.resolve();
+        }
+        logger.warn("Could not modify semesterId column:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       // Try to add notAssignmentNeeded column to assigned_courses table and make assignedSectionId nullable
       const assignedCourseTableName = db.assignedCourse.getTableName();
       return db.sequelize.query(`
