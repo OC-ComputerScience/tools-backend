@@ -1831,29 +1831,32 @@ ${semestersJSON}
             // Pattern for Roman numerals: (I, II, III, IV, V, VI, VII, VIII, IX, X)
             // Match longer patterns first (IX, VIII, VII, VI, IV, III, II) before shorter ones (I, X, V)
             // Handle both cases: " I C" (with space) and " IC" (without space, where I is Roman numeral and C is grade)
-            // Pattern: optional space(s) + Roman numeral + optional space(s) + grade letter (A-F, S, P, W, U, I)
+            // Pattern: optional space(s) + Roman numeral + optional space(s) + grade letter (A-F, S, P, W, U)
+            // CRITICAL: Do NOT include "I" in the grade pattern [A-FSPWU] to prevent regex backtracking issues
+            // with course names ending in Roman numerals like "II", "III", "VI", "VII", "VIII"
             // Note: A-F includes A, B, C, D, E, F
             logger.debug(`Checking course name for grade extraction: "${courseName}"`);
             
             // Try with space first (most common case): " I C" or " II B"
-            let romanNumeralPattern = /\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWUI])\s*$/i;
+            // IMPORTANT: Grade pattern is [A-FSPWU] - excludes "I" to prevent backtracking issues
+            let romanNumeralPattern = /\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWU])\s*$/i;
             let romanNumeralWithGradeMatch = courseName.match(romanNumeralPattern);
             
             // If no match, try without space between Roman numeral and grade: " IC" or " IIB"
             if (!romanNumeralWithGradeMatch) {
-              romanNumeralPattern = /\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWUI])\s*$/i;
+              romanNumeralPattern = /\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWU])\s*$/i;
               romanNumeralWithGradeMatch = courseName.match(romanNumeralPattern);
             }
             
             // If still no match, try without requiring space before Roman numeral (edge case)
             if (!romanNumeralWithGradeMatch) {
-              romanNumeralPattern = /(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWUI])\s*$/i;
+              romanNumeralPattern = /(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWU])\s*$/i;
               romanNumeralWithGradeMatch = courseName.match(romanNumeralPattern);
             }
             
             // Last try: no space before Roman numeral and no space after
             if (!romanNumeralWithGradeMatch) {
-              romanNumeralPattern = /(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWUI])\s*$/i;
+              romanNumeralPattern = /(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWU])\s*$/i;
               romanNumeralWithGradeMatch = courseName.match(romanNumeralPattern);
             }
             
@@ -1865,15 +1868,16 @@ ${semestersJSON}
               
               // Remove both the Roman numeral and grade, then add back just the Roman numeral to the course name
               // Try all patterns for replacement
-              let newCourseName = courseName.replace(/\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWUI])\s*$/i, ' ' + romanNumeral).trim();
+              // CRITICAL: Use [A-FSPWU] (without I) to match the extraction pattern
+              let newCourseName = courseName.replace(/\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWU])\s*$/i, ' ' + romanNumeral).trim();
               if (newCourseName === courseName) {
-                newCourseName = courseName.replace(/\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWUI])\s*$/i, ' ' + romanNumeral).trim();
+                newCourseName = courseName.replace(/\s+(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWU])\s*$/i, ' ' + romanNumeral).trim();
               }
               if (newCourseName === courseName) {
-                newCourseName = courseName.replace(/(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWUI])\s*$/i, ' ' + romanNumeral).trim();
+                newCourseName = courseName.replace(/(IX|VIII|VII|VI|IV|III|II|I|X|V)\s+([A-FSPWU])\s*$/i, ' ' + romanNumeral).trim();
               }
               if (newCourseName === courseName) {
-                newCourseName = courseName.replace(/(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWUI])\s*$/i, ' ' + romanNumeral).trim();
+                newCourseName = courseName.replace(/(IX|VIII|VII|VI|IV|III|II|I|X|V)([A-FSPWU])\s*$/i, ' ' + romanNumeral).trim();
               }
               
               course.courseName = newCourseName;
@@ -1888,6 +1892,7 @@ ${semestersJSON}
               if (!hasRomanNumeralOnly) {
                 // No Roman numeral at the end - check if it ends with a grade
                 // Valid grades: A, B, C, D, F, S, P, W, U (exclude "I" to avoid confusion with Roman numeral)
+                // CRITICAL: Do NOT include "I" in [A-FSPWU] pattern to prevent regex backtracking issues
                 // First try with space (most common): "Course Name S"
                 let gradePattern = /\s+([A-FSPWU])\s*$/;
                 let match = courseName.match(gradePattern);
@@ -1906,13 +1911,21 @@ ${semestersJSON}
                   logger.debug(`Extracted grade "${potentialGrade}" from end of course name: "${courseName}" -> "${course.courseName}"`);
                 } else {
                   // Check for "I" grade separately - only if it's clearly not a Roman numeral
-                  // If the course name ends with just " I" (space + I), it could be either a grade or Roman numeral
-                  // Since we want to be conservative, we'll skip extracting standalone "I" to avoid false positives
-                  const iPattern = /\s+I\s*$/;
-                  if (iPattern.test(courseName)) {
-                    // This could be either a Roman numeral or a grade - be conservative and don't extract it
+                  // CRITICAL: Only extract "I" as a grade if:
+                  // 1. It appears with a space before it (e.g., "Course Name I")
+                  // 2. It's NOT followed by another "I" (which would be "II")
+                  // 3. It's NOT part of a longer Roman numeral pattern
+                  const iGradePattern = /\s+I\s*$/;
+                  const hasIIPattern = /\s+II\s*$/i; // Check for " II" to avoid false positives
+                  if (iGradePattern.test(courseName) && !hasIIPattern.test(courseName)) {
+                    // This appears to be a standalone "I" grade, not a Roman numeral
+                    course.courseName = courseName.replace(iGradePattern, '').trim();
+                    course.grade = 'I';
+                    logger.debug(`Extracted grade "I" from end of course name: "${courseName}" -> "${course.courseName}"`);
+                  } else {
+                    // Could be a Roman numeral or ambiguous - be conservative and don't extract it
                     // The LLM should handle this in the prompt
-                    logger.debug(`Course name ends with " I" - skipping extraction (could be Roman numeral): ${courseName}`);
+                    logger.debug(`Course name ends with " I" or "II" - skipping extraction (likely Roman numeral): ${courseName}`);
                   }
                 }
               } else {
@@ -2298,52 +2311,6 @@ ${semestersJSON}
         }
       }
 
-      // Post-processing: Filter out invalid courses (statistics headers, etc.)
-      if (parsedData.courses && Array.isArray(parsedData.courses)) {
-        const validCoursePattern = /^[A-Z]{2,5}\s*[-]?\s*\d{2,5}/i; // Letters (2-5) followed by optional dash/space and numbers (2-5, to support 4-digit course numbers like "BIO 1414" and 5-letter prefixes like "POLSC 1113")
-        const statisticsKeywords = ['EHRS', 'GPA', 'HRSPOINTS', 'CUMULATIVE', 'TERM', 'SEMESTER', 'HOURS', 'POINTS', 'TOTAL', 'CURRENT', 'RETENTION'];
-        
-        const originalCount = parsedData.courses.length;
-        parsedData.courses = parsedData.courses.filter((course) => {
-          const courseNumber = course.courseNumber ? String(course.courseNumber).trim().toUpperCase() : '';
-          const courseName = course.courseName ? String(course.courseName).trim().toUpperCase() : '';
-          
-          // Filter out courses without course numbers
-          if (!courseNumber || courseNumber === '' || /^[\s\-_]+$/.test(courseNumber)) {
-            logger.debug(`Filtered out course with blank/invalid course number: "${course.courseNumber}" - "${course.courseName}"`);
-            return false;
-          }
-          
-          // Filter out courses that don't match the valid course number pattern (letters followed by numbers)
-          if (!validCoursePattern.test(courseNumber)) {
-            logger.debug(`Filtered out course with invalid course number format: "${course.courseNumber}" - "${course.courseName}"`);
-            return false;
-          }
-          
-          // Filter out courses that are statistics headers/keywords
-          for (const keyword of statisticsKeywords) {
-            if (courseNumber.includes(keyword) || courseName.includes(keyword)) {
-              logger.debug(`Filtered out course that matches statistics keyword "${keyword}": "${course.courseNumber}" - "${course.courseName}"`);
-              return false;
-            }
-          }
-          
-          // Filter out courses that are clearly statistics lines (patterns like "EHRSGPA-HRSPOINTSGPA")
-          if (courseNumber.match(/EHRS|GPA|HRSPOINTS|CUMULATIVE|TERM|SEMESTER|HOURS|POINTS/i) ||
-              courseNumber.match(/EHRSGPA|HRSPOINTSGPA/i) ||
-              courseNumber.match(/^[A-Z]+[-]?[A-Z]+$/i)) {
-            logger.debug(`Filtered out course that matches statistics pattern: "${course.courseNumber}" - "${course.courseName}"`);
-            return false;
-          }
-          
-          return true;
-        });
-        
-        const filteredCount = originalCount - parsedData.courses.length;
-        if (filteredCount > 0) {
-          logger.info(`Filtered out ${filteredCount} invalid course(s) (statistics headers, invalid format, etc.)`);
-        }
-      }
 
       return parsedData;
     } catch (error) {
