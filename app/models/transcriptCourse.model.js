@@ -33,7 +33,7 @@ const TranscriptCourse = SequelizeInstance.define("transcript", {
   },
   semesterId: {
     type: Sequelize.INTEGER,
-    allowNull: false,
+    allowNull: true,
   },
   grade: {
     type: Sequelize.STRING,
