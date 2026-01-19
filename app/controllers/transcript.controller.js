@@ -107,7 +107,19 @@ exports.processOCR = async (req, res) => {
   } catch (error) {
     logger.error(`Error processing OCR for transcript ${id}: ${error.message}`);
     logger.error(`Error stack: ${error.stack}`);
-    res.status(500).json({ message: error.message });
+    
+    // Determine status code based on error type
+    let statusCode = 500;
+    if (error.message && (error.message.includes('overloaded') || error.message.includes('503'))) {
+      statusCode = 503; // Service Unavailable
+    } else if (error.message && error.message.includes('429')) {
+      statusCode = 429; // Too Many Requests
+    }
+    
+    res.status(statusCode).json({ 
+      message: error.message || "An error occurred while processing the transcript",
+      error: error.message 
+    });
   }
 };
 
