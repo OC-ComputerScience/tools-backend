@@ -23,6 +23,7 @@ import TranscriptCourse from "./transcriptCourse.model.js";
 import Semester from "./semester.model.js";
 import Catalog from "./catalog.model.js";
 import PrefixKeyword from "./prefixKeyword.model.js";
+import SectionLocation from "./sectionLocation.model.js";
 
 const db = {};
 db.Sequelize = Sequelize;
@@ -48,6 +49,7 @@ db.TranscriptCourse = TranscriptCourse;
 db.Semester = Semester;
 db.Catalog = Catalog;
 db.PrefixKeyword = PrefixKeyword;
+db.SectionLocation = SectionLocation;
 
 // Foreign key for session
 db.user.hasMany(
@@ -78,6 +80,10 @@ db.assignedCourse.belongsTo(db.section, { as: "assignedSection", foreignKey: "as
 // Section relationships with MeetingTime
 db.section.hasMany(db.meetingTime, { as: "meetingTimes", foreignKey: "sectionId", onDelete: "CASCADE" });
 db.meetingTime.belongsTo(db.section, { as: "section", foreignKey: "sectionId" });
+
+// Section relationships with SectionLocation
+db.section.hasMany(db.SectionLocation, { as: "locations", foreignKey: "sectionId", onDelete: "CASCADE" });
+db.SectionLocation.belongsTo(db.section, { as: "section", foreignKey: "sectionId" });
 
 // Foreign key relationships for SemesterPlan
 db.major.hasMany(

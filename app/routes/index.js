@@ -19,6 +19,7 @@ import CatalogRoutes from "./catalog.routes.js";
 import SemesterRoutes from "./semester.routes.js";
 import TranscriptRoutes from "./transcript.routes.js";
 import PrefixKeywordRoutes from "./prefixKeyword.routes.js";
+import SectionLocationRoutes from "./sectionLocation.routes.js";
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.use("/catalogs", CatalogRoutes);
 router.use("/semesters", SemesterRoutes);
 router.use("/transcript", TranscriptRoutes);
 router.use("/prefixKeywords", PrefixKeywordRoutes);
+router.use("/sectionLocations", SectionLocationRoutes);
 
 export default router;
 
