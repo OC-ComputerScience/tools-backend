@@ -1,8 +1,10 @@
 # Logs
 logs/*.log
+logs/*.log.*
 logs/*.gz
 logs/*-audit.json
 *.log
+*.log.*
 *.log.gz
 npm-debug.log*
 yarn-debug.log*
