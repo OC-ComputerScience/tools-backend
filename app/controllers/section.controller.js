@@ -91,12 +91,21 @@ exports.findAll = (req, res) => {
     where: condition,
     include: [
       { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
+      { model: UserSection, as: "sectionUsers", required: false, include: [{ model: User, as: "user", attributes: ["id", "fName", "lName", "email"] }] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
   })
     .then((data) => {
       logger.info(`Retrieved ${data.length} sections`);
-      res.send(data);
+      // Add user (first instructor) to each section for display
+      const transformed = data.map((s) => {
+        const json = s.toJSON();
+        const firstUser = json.sectionUsers?.[0]?.user;
+        json.user = firstUser || null;
+        delete json.sectionUsers;
+        return json;
+      });
+      res.send(transformed);
     })
     .catch((err) => {
       logger.error(`Error retrieving sections: ${err.message}`);
@@ -121,6 +130,7 @@ exports.findAllWithCount = (req, res) => {
     where: condition,
     include: [
       { model: Semester, as: "semester", attributes: ["id", "name", "startDate", "endDate"] },
+      { model: UserSection, as: "sectionUsers", required: false, include: [{ model: User, as: "user", attributes: ["id", "fName", "lName", "email"] }] },
     ],
     order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
   })
@@ -149,7 +159,7 @@ exports.findAllWithCount = (req, res) => {
         assignedBySectionId[ac.sectionId].push(ac.toJSON());
       });
 
-      // Transform the data to include assignment info in a more frontend-friendly format
+      // Transform the data to include assignment info and first instructor
       const transformedData = data.map((section) => {
         const sectionJson = section.toJSON();
         const assignedSections = assignedBySectionId[section.id] || [];
@@ -158,11 +168,20 @@ exports.findAllWithCount = (req, res) => {
           assignedSections.length > 0 && assignedSections[0].assignedSection
             ? assignedSections[0].assignedSection
             : null;
+        // Get all instructors for faculty display (comma-separated last names)
+        const sectionUsersList = sectionJson.sectionUsers || [];
+        const facultyLastNames = sectionUsersList
+          .map((su) => su?.user?.lName)
+          .filter(Boolean);
+        const firstUser = sectionUsersList[0]?.user || null;
+        delete sectionJson.sectionUsers;
         
         return {
           ...sectionJson,
           assignedSectionInfo: assignedSectionInfo,
           assignedCourse: assignedSections, // Keep array for compatibility
+          user: firstUser,
+          facultyLastNames: facultyLastNames.join(", "),
         };
       });
 
