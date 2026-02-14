@@ -95,6 +95,42 @@ exports.create = async (req, res) => {
   }
 };
 
+// Get unique faculty counts for course migration stats (avoids per-semester double-counting)
+exports.getFacultyStats = async (req, res) => {
+  try {
+    const sequelize = db.sequelize;
+    const QueryTypes = db.Sequelize.QueryTypes;
+    const userSectionsTable = db.userSection.getTableName();
+    const assignedCoursesTable = db.assignedCourse.getTableName();
+
+    // All distinct users who have at least one user_section (faculty)
+    const [allFacultyResult] = await sequelize.query(
+      `SELECT COUNT(DISTINCT us.userId) as count FROM ${userSectionsTable} us`,
+      { type: QueryTypes.SELECT }
+    );
+    const allFacultyCount = parseInt(allFacultyResult?.count ?? 0, 10);
+
+    // Distinct users who have user_section for a section that has assigned_courses (notAssignmentNeeded = false)
+    const [withAssignmentsResult] = await sequelize.query(
+      `SELECT COUNT(DISTINCT us.userId) as count
+       FROM ${userSectionsTable} us
+       INNER JOIN ${assignedCoursesTable} ac ON us.sectionId = ac.sectionId AND ac.notAssignmentNeeded = 0`,
+      { type: QueryTypes.SELECT }
+    );
+    const facultyWithAssignmentsCount = parseInt(withAssignmentsResult?.count ?? 0, 10);
+
+    res.send({
+      facultyWithAssignments: facultyWithAssignmentsCount,
+      facultyWithNoAssignments: Math.max(0, allFacultyCount - facultyWithAssignmentsCount),
+    });
+  } catch (error) {
+    logger.error(`Error getting faculty stats: ${error.message}`);
+    res.status(500).send({
+      message: error.message || "Error retrieving faculty stats.",
+    });
+  }
+};
+
 // Retrieve all UserSection assignments
 exports.findAll = async (req, res) => {
   try {

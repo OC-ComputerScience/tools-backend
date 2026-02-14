@@ -9,6 +9,9 @@ router.post("/", [authenticate], userSectionController.create);
 // Retrieve all user-section assignments
 router.get("/", [authenticate], userSectionController.findAll);
 
+// Get unique faculty counts (must be before /user/:userId)
+router.get("/faculty-stats", [authenticate], userSectionController.getFacultyStats);
+
 // Find all sections for a specific user
 router.get("/user/:userId", [authenticate], userSectionController.findByUser);
 

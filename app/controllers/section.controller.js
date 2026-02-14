@@ -145,7 +145,8 @@ exports.findAllWithCount = (req, res) => {
           {
             model: Section,
             as: "assignedSection",
-            attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
+            attributes: ["id", "courseNumber", "courseSection", "courseDescription", "semesterId"],
+            include: [{ model: Semester, as: "semester", attributes: ["id", "name"] }],
           },
         ],
       });
