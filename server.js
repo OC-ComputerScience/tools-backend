@@ -335,6 +335,54 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      // Try to add exported and exportedDate columns to assigned_courses table
+      const assignedCourseTableName = db.assignedCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignedCourseTableName}
+        ADD COLUMN exported BOOLEAN DEFAULT FALSE,
+        ADD COLUMN exportedDate DATE NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("exported/exportedDate columns already exist in assigned_courses table, skipping...");
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Assigned_courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add exported/exportedDate columns to assigned_courses table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      // Try to add coursesExported and coursesExportedDate columns to assigned_courses table
+      const assignedCourseTableName = db.assignedCourse.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignedCourseTableName}
+        ADD COLUMN coursesExported BOOLEAN DEFAULT FALSE,
+        ADD COLUMN coursesExportedDate DATE NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("coursesExported/coursesExportedDate columns already exist in assigned_courses table, skipping...");
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Assigned_courses table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add coursesExported/coursesExportedDate columns to assigned_courses table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       app.listen(PORT, () => {
         logger.info(`Server is running on port ${PORT}`);
       });
