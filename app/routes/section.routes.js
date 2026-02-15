@@ -14,9 +14,7 @@ router.get("/withCount", [authenticate], sections.findAllWithCount);
 
 // Retrieve sections by user email
 router.get("/user/:email", [authenticate], sections.findByUserEmail);// Retrieve a single Section with id
-router.get("/:id", [authenticate], sections.findOne);
-
-// Update a Section with id (Admin only)
+router.get("/:id", [authenticate], sections.findOne);// Update a Section with id (Admin only)
 router.put("/:id", [authenticate], sections.update);// Delete a Section with id (Admin only)
 router.delete("/:id", [authenticate], sections.delete);
 
