@@ -61,7 +61,7 @@ exports.findAll = (req, res) => {
     // Simple query for counting all assigned courses
     AssignedCourse.findAll({
       where: condition,
-      attributes: ['id', 'sectionId', 'assignedSectionId', 'notAssignmentNeeded'],
+      attributes: ['id', 'sectionId', 'assignedSectionId', 'notAssignmentNeeded', 'exported', 'exportedDate', 'coursesExported', 'coursesExportedDate'],
       raw: false
     })
       .then((data) => {
