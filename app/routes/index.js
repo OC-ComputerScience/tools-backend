@@ -20,6 +20,7 @@ import SemesterRoutes from "./semester.routes.js";
 import TranscriptRoutes from "./transcript.routes.js";
 import PrefixKeywordRoutes from "./prefixKeyword.routes.js";
 import SectionLocationRoutes from "./sectionLocation.routes.js";
+import CanvasRoutes from "./canvas.routes.js";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use("/users", UserRoutes);
 router.use("/courses", CourseRoutes);
 router.use("/sections", SectionRoutes);
 router.use("/assignedCourses", AssignedCourseRoutes);
+router.use("/canvas", CanvasRoutes);
 router.use("/meetingTimes", MeetingTimeRoutes);
 router.use("/majors", MajorRoutes);
 router.use("/semesterPlans", SemesterPlanRoutes);
