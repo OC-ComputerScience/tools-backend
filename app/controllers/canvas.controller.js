@@ -32,7 +32,10 @@ exports.modules = async (req, res) => {
         const cached = cache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
             console.log('Returning cached data');
-            return res.json(cached.data);
+            // Set HTML content type and return HTML from cache
+            res.setHeader('Content-Type', 'text/html');
+            const htmlResponse = generateModuleHTML(cached.data, courseId);
+            return res.send(htmlResponse);
         }
 
         const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com');
