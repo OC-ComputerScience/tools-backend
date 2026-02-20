@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "courseimport-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Course Import Node.js with Rest API",
   "main": "server.js",
   "scripts": {
