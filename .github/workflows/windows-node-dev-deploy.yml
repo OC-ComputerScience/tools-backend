@@ -19,6 +19,8 @@ jobs:
       CLIENT_SECRET: ${{secrets.CLIENT_SECRET}}
       PORT: ${{secrets.PORT}}
       GEMINI_API_KEY: ${{secrets.GEMINI_API_KEY}}
+      CANVAS_DOMAIN: ${{secrets.DEV_CANVAS_DOMAIN}}
+      CANVAS_API_TOKEN: ${{secrets.DEV_CANVAS_API_TOKEN}}
 
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +39,8 @@ jobs:
           "CLIENT_SECRET=${{env.CLIENT_SECRET}}" | Out-File -FilePath .env -Append -Encoding utf8
           "PORT=${{env.PORT}}" | Out-File -FilePath .env -Append -Encoding utf8
           "GEMINI_API_KEY=${{env.GEMINI_API_KEY}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "CANVAS_DOMAIN=${{env.CANVAS_DOMAIN}}" | Out-File -FilePath .env -Append -Encoding utf8
+          "CANVAS_API_TOKEN=${{env.CANVAS_API_TOKEN}}" | Out-File -FilePath .env -Append -Encoding utf8
 
       - run: npm run winbundle
       - name: Copy folder content recursively to remote
