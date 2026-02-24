@@ -366,16 +366,6 @@ function generateModuleHTML(modules, classId) {
             background-color: #eee;
             margin: 12px 0;
         }
-        .item-link {
-            color: #811429;
-            text-decoration: none;
-            font-weight: 500;
-            display: block;
-            padding: 8px 0;
-        }
-        .item-link:hover {
-            text-decoration: underline;
-        }
         .item-title {
             font-size: 16px;
             font-weight: 600;
@@ -383,6 +373,20 @@ function generateModuleHTML(modules, classId) {
             padding: 8px 0;
             cursor: default;
             pointer-events: none;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .item-link {
+            color: #811429;
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            padding: 8px 0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .item-link:hover {
+            text-decoration: underline;
         }
         h1 {
             font-family: 'Bebas Neue', 'Poppins', sans-serif;
@@ -474,7 +478,7 @@ function generateModuleHTML(modules, classId) {
                 const itemsContainer = card.querySelector('.module-items');
                 
                 try {
-                    const response = await fetch(\`/tools/canvas/\${courseId}/module/\${moduleId}/items?t=\${Date.now()}\`);
+                    const response = await fetch('/tools/canvas/' + courseId + '/module/' + moduleId + '/items?t=' + Date.now());
                     if (!response.ok) throw new Error('Failed to load module items');
                     
                     const contentType = response.headers.get('content-type');
@@ -488,17 +492,31 @@ function generateModuleHTML(modules, classId) {
                         throw new Error('Endpoint returned HTML instead of JSON');
                     }
                     
-                    itemsContainer.innerHTML = \`
-                        <div class="items-card">
-                            \${items.map((item, index) => \`
-                                \${item.type === 'SubHeader' ? 
-                                    \`<div class="item-title">\${item.title}</div>\` :
-                                    \`\${item.html_url || item.url ? \`<a href="\${item.html_url || item.url}" class="item-link" target="_blank">\${item.title}</a>\` : \`<div class="item-title">\${item.title}</div>\`}
-                                \`}
-                                \${index < items.length - 1 ? '<div class="item-divider"></div>' : ''}
-                            \`).join('')}
-                        </div>
-                    \`;
+                    // Build items HTML
+                    const itemsHTML = items.map((item, index) => {
+                        let itemHTML = '';
+                        
+                        if (item.type === 'SubHeader') {
+                            itemHTML = '<div class="item-title">' + (item.title || '') + '</div>';
+                        } else {
+                            const url = item.html_url || item.url;
+                            if (url) {
+                                const safeUrl = (url || '').replace(/"/g, '&quot;');
+                                itemHTML = '<a href="' + safeUrl + '" class="item-link" target="_blank">' + (item.title || '') + '</a>';
+                            } else {
+                                itemHTML = '<div class="item-title">' + (item.title || '') + '</div>';
+                            }
+                        }
+                        
+                        // Add divider if not the last item
+                        if (index < items.length - 1) {
+                            itemHTML += '<div class="item-divider"></div>';
+                        }
+                        
+                        return itemHTML;
+                    }).join('');
+                    
+                    itemsContainer.innerHTML = '<div class="items-card">' + itemsHTML + '</div>';
                 } catch (error) {
                     itemsContainer.innerHTML = '<div class="loading">Failed to load module items</div>';
                 }
