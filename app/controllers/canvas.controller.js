@@ -522,6 +522,11 @@ function generateModuleHTML(modules, classId) {
                 }
             }
         });
+
+        const ro = new ResizeObserver(entries => {
+            window.parent.postMessage({ height: entries[0].contentRect.height }, '*');
+        });
+        ro.observe(document.body);
     </script>
 </body>
 </html>`;
