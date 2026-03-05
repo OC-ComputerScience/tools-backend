@@ -39,12 +39,24 @@ exports.modules = async (req, res) => {
         const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com');
         const apiToken = process.env.CANVAS_API_TOKEN;
 
+        // Only log in non-production environments
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`Canvas domain: ${canvasDomain}`);
+            console.log(`API token configured: ${!!apiToken}`);
+        }
+
         if (!apiToken) {
+            console.error('Canvas API token not configured in environment');
             return res.status(500).json({ error: 'Canvas API token not configured' });
         }
 
         let allModules = [];
         let url = `${canvasDomain}/api/v1/courses/${courseId}/modules?per_page=100`;
+
+        // Only log URL in non-production environments
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`Fetching modules from: ${url}`);
+        }
 
         while (url) {
             const response = await fetch(url, {
@@ -55,7 +67,21 @@ exports.modules = async (req, res) => {
                 signal: AbortSignal.timeout(12000) // 12 second timeout
             });
 
-            if (!response.ok) throw new Error('Failed to fetch modules');
+            // Only log response status in non-production environments
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`Canvas API response status: ${response.status}`);
+            }
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                // Log error details in all environments (but sanitize if production)
+                if (process.env.NODE_ENV === 'production') {
+                    console.error(`Canvas API error: ${response.status} ${response.statusText}`);
+                } else {
+                    console.error(`Canvas API error response: ${errorText}`);
+                }
+                throw new Error(`Failed to fetch modules: ${response.status} ${response.statusText}`);
+            }
 
             const modules = await response.json();
             allModules = allModules.concat(modules);
@@ -91,11 +117,22 @@ exports.modules = async (req, res) => {
         res.send(htmlResponse);
 
     } catch (error) {
-        console.error(`Failed to fetch modules for course ${courseId}:`, error);
+        // Log detailed error info in non-production, sanitized info in production
+        if (process.env.NODE_ENV === 'production') {
+            console.error(`Failed to fetch modules for course ${courseId}: ${error.message}`);
+        } else {
+            console.error(`Failed to fetch modules for course ${courseId}:`, {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+        }
+        
         res.status(500).json({
             error: 'Failed to fetch modules',
             details: error.message,
-            courseId: courseId
+            courseId: courseId,
+            timestamp: new Date().toISOString()
         });
     }
 };
@@ -524,7 +561,15 @@ function generateModuleHTML(modules, classId) {
         });
 
         const ro = new ResizeObserver(entries => {
-            window.parent.postMessage({ height: entries[0].contentRect.height }, '*');
+            try {
+                // Only send message if there's a parent window
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ height: entries[0].contentRect.height }, '*');
+                }
+            } catch (error) {
+                // Silently fail if postMessage doesn't work
+                console.debug('ResizeObserver postMessage failed:', error);
+            }
         });
         ro.observe(document.body);
     </script>
