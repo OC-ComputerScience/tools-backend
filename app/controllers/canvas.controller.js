@@ -276,9 +276,11 @@ function generateModuleHTML(modules, classId) {
             background-color: white; 
             padding: 0.5rem; 
             margin: 0;
+            overflow-x: hidden;
             overflow-y: hidden;
         }
         html {
+            overflow-x: hidden;
             overflow-y: hidden;
         }
         .modules-container {
