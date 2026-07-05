@@ -163,18 +163,35 @@ exports.modules2 = async (req, res) => {
       return res.status(500).json({ error: 'Canvas API token not configured' });
     }
 
-    const itemsUrl = `${canvasDomain}/api/v1/courses/${courseId}/modules/${moduleId}/items`;
-    const response = await fetch(itemsUrl, {
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(12000)
-    });
+    let allItems = [];
+    let url = `${canvasDomain}/api/v1/courses/${courseId}/modules/${moduleId}/items?per_page=100`;
 
-    if (!response.ok) throw new Error('Failed to fetch module items');
+    while (url) {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(12000)
+      });
 
-    const items = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch module items');
+
+      const items = await response.json();
+      allItems = allItems.concat(items);
+
+      // Check for next page in Link header
+      const linkHeader = response.headers.get('Link');
+      url = null;
+      if (linkHeader) {
+        const nextLink = linkHeader.split(',').find(link => link.includes('rel="next"'));
+        if (nextLink) {
+          url = nextLink.match(/<(.*?)>/)[1];
+        }
+      }
+    }
+
+    const items = allItems;
 
     // Store in cache
     cache.set(cacheKey, {
@@ -220,19 +237,35 @@ exports.modules2Json = async (req, res) => {
       return res.status(500).json({ error: 'Canvas API token not configured' });
     }
 
-    const itemsUrl = `${canvasDomain}/api/v1/courses/${courseId}/modules/${moduleId}/items`;
-    const response = await fetch(itemsUrl, {
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(12000)
-    });
+    let allItems = [];
+    let url = `${canvasDomain}/api/v1/courses/${courseId}/modules/${moduleId}/items?per_page=100`;
 
-    if (!response.ok) throw new Error('Failed to fetch module items');
+    while (url) {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(12000)
+      });
 
-    const items = await response.json();
-    const publishedItems = items.filter(item => item.published !== false);
+      if (!response.ok) throw new Error('Failed to fetch module items');
+
+      const items = await response.json();
+      allItems = allItems.concat(items);
+
+      // Check for next page in Link header
+      const linkHeader = response.headers.get('Link');
+      url = null;
+      if (linkHeader) {
+        const nextLink = linkHeader.split(',').find(link => link.includes('rel="next"'));
+        if (nextLink) {
+          url = nextLink.match(/<(.*?)>/)[1];
+        }
+      }
+    }
+
+    const publishedItems = allItems.filter(item => item.published !== false);
 
     // Store in cache
     cache.set(cacheKey, {
@@ -324,6 +357,8 @@ function generateModuleHTML(modules, classId) {
             font-size: 14px;
             font-weight: 600;
             color: #811429;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .module-arrow {
             font-size: 12px;
@@ -363,6 +398,8 @@ function generateModuleHTML(modules, classId) {
             font-weight: 500;
             display: block;
             padding: 8px 0;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .item-link:hover {
             text-decoration: underline;
@@ -374,6 +411,8 @@ function generateModuleHTML(modules, classId) {
             padding: 8px 0;
             cursor: default;
             pointer-events: none;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         h1 {
             font-family: 'Bebas Neue', 'Poppins', sans-serif;
@@ -538,6 +577,8 @@ function generateModuleItemsHTML(items, courseId, moduleId) {
                         font-weight: 500;
                         display: block;
                         padding: 8px 0;
+                        word-break: keep-all;
+                        overflow-wrap: break-word;
                     }
                     .item-link:hover {
                         text-decoration: underline;
@@ -549,6 +590,8 @@ function generateModuleItemsHTML(items, courseId, moduleId) {
                         padding: 8px 0;
                         cursor: default;
                         pointer-events: none;
+                        word-break: keep-all;
+                        overflow-wrap: break-word;
                     }
                     h1 {
                         font-family: 'Bebas Neue', 'Poppins', sans-serif;
