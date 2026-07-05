@@ -357,6 +357,8 @@ function generateModuleHTML(modules, classId) {
             font-size: 14px;
             font-weight: 600;
             color: #811429;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .module-arrow {
             font-size: 12px;
@@ -396,6 +398,8 @@ function generateModuleHTML(modules, classId) {
             font-weight: 500;
             display: block;
             padding: 8px 0;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .item-link:hover {
             text-decoration: underline;
@@ -407,6 +411,8 @@ function generateModuleHTML(modules, classId) {
             padding: 8px 0;
             cursor: default;
             pointer-events: none;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         h1 {
             font-family: 'Bebas Neue', 'Poppins', sans-serif;
@@ -571,6 +577,8 @@ function generateModuleItemsHTML(items, courseId, moduleId) {
                         font-weight: 500;
                         display: block;
                         padding: 8px 0;
+                        word-break: keep-all;
+                        overflow-wrap: break-word;
                     }
                     .item-link:hover {
                         text-decoration: underline;
@@ -582,6 +590,8 @@ function generateModuleItemsHTML(items, courseId, moduleId) {
                         padding: 8px 0;
                         cursor: default;
                         pointer-events: none;
+                        word-break: keep-all;
+                        overflow-wrap: break-word;
                     }
                     h1 {
                         font-family: 'Bebas Neue', 'Poppins', sans-serif;
