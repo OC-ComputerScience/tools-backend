@@ -37,6 +37,27 @@ const average = (scores) =>
     ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100) / 100
     : null;
 
+const weightedAverage = (rows) => {
+  const included = rows.filter((row) => {
+    const weight = Number(row.assessmentWeight);
+    return row.averageScore != null && Number.isFinite(weight) && weight > 0;
+  });
+  const weightTotal = included.reduce((sum, row) => sum + Number(row.assessmentWeight), 0);
+  if (!weightTotal) return null;
+  const weighted = included.reduce(
+    (sum, row) => sum + row.averageScore * Number(row.assessmentWeight),
+    0
+  ) / weightTotal;
+  return Math.round(weighted * 100) / 100;
+};
+
+const includedGradeCount = (rows) =>
+  rows.reduce((sum, row) => {
+    const weight = Number(row.assessmentWeight);
+    if (row.averageScore == null || !Number.isFinite(weight) || weight <= 0) return sum;
+    return sum + row.gradeCount;
+  }, 0);
+
 exports.findForUniversitySemester = async (req, res) => {
   const universityId = req.query.universityId;
   const semesterId = req.query.semesterId;
@@ -63,7 +84,7 @@ exports.findForUniversitySemester = async (req, res) => {
 
     const colleges = await College.findAll({
       where: { universityId },
-      attributes: ["id", "name"],
+      attributes: ["id", "name", "assessmentWeight"],
       order: [["name", "ASC"]],
     });
     const collegeIds = colleges.map((college) => college.id);
@@ -71,7 +92,7 @@ exports.findForUniversitySemester = async (req, res) => {
     const departments = collegeIds.length
       ? await Department.findAll({
           where: { collegeId: { [Op.in]: collegeIds } },
-          attributes: ["id", "collegeId"],
+          attributes: ["id", "collegeId", "assessmentWeight"],
         })
       : [];
     const departmentIds = departments.map((department) => department.id);
@@ -162,38 +183,44 @@ exports.findForUniversitySemester = async (req, res) => {
     }
 
     const results = [...universityOutcomes.values()].map((universityOutcome) => {
-      const scores = [];
       const collegeScores = [];
       for (const college of colleges) {
-        const collegeDepartmentIds = new Set(
-          departments
-            .filter((department) => Number(department.collegeId) === Number(college.id))
-            .map((department) => Number(department.id))
+        const collegeDepartments = departments.filter(
+          (department) => Number(department.collegeId) === Number(college.id)
         );
-        const linkedIds = departmentOutcomes
-          .filter((outcome) => collegeDepartmentIds.has(Number(outcome.departmentId)))
-          .map((outcome) => Number(outcome.id))
-          .filter((id) =>
-            (universityOutcomeIdsByDepartmentOutcome.get(id) || []).includes(Number(universityOutcome.id))
+        const departmentScores = [];
+        for (const department of collegeDepartments) {
+          const linkedIds = departmentOutcomes
+            .filter((outcome) => Number(outcome.departmentId) === Number(department.id))
+            .map((outcome) => Number(outcome.id))
+            .filter((id) =>
+              (universityOutcomeIdsByDepartmentOutcome.get(id) || []).includes(Number(universityOutcome.id))
+            );
+          if (!linkedIds.length) continue;
+          const departmentScoreList = linkedIds.flatMap(
+            (id) => scoresByDepartmentOutcome.get(id) || []
           );
-        if (!linkedIds.length) continue;
-        const collegeScoreList = linkedIds.flatMap(
-          (id) => scoresByDepartmentOutcome.get(id) || []
-        );
-        scores.push(...collegeScoreList);
+          departmentScores.push({
+            assessmentWeight: department.assessmentWeight,
+            averageScore: average(departmentScoreList),
+            gradeCount: departmentScoreList.length,
+          });
+        }
+        if (!departmentScores.length) continue;
         collegeScores.push({
           id: college.id,
           name: college.name,
-          averageScore: average(collegeScoreList),
-          gradeCount: collegeScoreList.length,
+          assessmentWeight: college.assessmentWeight,
+          averageScore: weightedAverage(departmentScores),
+          gradeCount: includedGradeCount(departmentScores),
         });
       }
       return {
         id: universityOutcome.id,
         number: universityOutcome.number,
         name: universityOutcome.name,
-        averageScore: average(scores),
-        gradeCount: scores.length,
+        averageScore: weightedAverage(collegeScores),
+        gradeCount: includedGradeCount(collegeScores),
         colleges: collegeScores,
       };
     }).sort((a, b) => {
