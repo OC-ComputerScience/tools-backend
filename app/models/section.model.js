@@ -31,6 +31,10 @@ const Section = SequelizeInstance.define("section", {
     type: Sequelize.STRING(255),
     allowNull: true,
   },
+  canvasSISCourseID: {
+    type: Sequelize.STRING(255),
+    allowNull: true,
+  },
 });
 
 export default Section;
