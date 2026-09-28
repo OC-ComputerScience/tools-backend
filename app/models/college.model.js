@@ -1,44 +1,31 @@
 import Sequelize from "sequelize";
 import SequelizeInstance from "../config/sequelizeInstance.js";
 
-const University = SequelizeInstance.define("university", {
+const College = SequelizeInstance.define("college", {
   id: {
     type: Sequelize.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
+  universityId: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
   name: {
     type: Sequelize.STRING,
     allowNull: false,
   },
-  city: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  state: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  country: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  oc_university_id: {
+  deanUserId: {
     type: Sequelize.INTEGER,
     allowNull: true,
-    comment: "ID of the university in the OC system",
   },
-  provostUserId: {
+  assessmentWeight: {
     type: Sequelize.INTEGER,
     allowNull: true,
   },
 }, {
   timestamps: true,
-  tableName: "universities",
+  tableName: "colleges",
 });
 
-export default University;
-
-
-
-
+export default College;

@@ -70,6 +70,28 @@ if (process.env.NODE_ENV !== "test") {
       });
     })
     .then(() => {
+      const sectionTableName = db.section.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${sectionTableName}
+        ADD COLUMN canvasSISCourseID VARCHAR(255) NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("canvasSISCourseID column already exists on sections, skipping...");
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("Sections table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add canvasSISCourseID column to sections:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
       // Try to add hours column to courses table if it doesn't exist
       // Get the actual table name from the model (handles pluralization)
       const courseTableName = db.course.getTableName();
@@ -379,6 +401,340 @@ if (process.env.NODE_ENV !== "test") {
           return Promise.resolve();
         }
         logger.warn("Could not add coursesExported/coursesExportedDate columns to assigned_courses table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const departmentOutcomeTableName = db.DepartmentOutcome.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${departmentOutcomeTableName}
+        ADD COLUMN universityOutcomeId INT NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("universityOutcomeId column already exists in department_outcomes table, skipping...");
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn("department_outcomes table doesn't exist - sync should have created it. Continuing...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add universityOutcomeId column to department_outcomes table:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const addLevel = (tableName) => db.sequelize.query(`
+        ALTER TABLE ${tableName}
+        ADD COLUMN level ENUM('undergraduate', 'graduate') NOT NULL DEFAULT 'undergraduate'
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info(`level column already exists in ${tableName}, skipping...`);
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn(`${tableName} doesn't exist - sync should have created it. Continuing...`);
+          return Promise.resolve();
+        }
+        logger.warn(`Could not add level column to ${tableName}:`, err.message);
+        return Promise.resolve();
+      });
+      return addLevel(db.UniversityOutcome.getTableName())
+        .then(() => addLevel(db.DepartmentOutcome.getTableName()));
+    })
+    .then(() => {
+      const addDateColumn = (tableName, columnName) => db.sequelize.query(`
+        ALTER TABLE ${tableName}
+        ADD COLUMN ${columnName} DATE NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info(`${columnName} column already exists in ${tableName}, skipping...`);
+          return Promise.resolve();
+        }
+        if (err.message && err.message.includes("doesn't exist")) {
+          logger.warn(`${tableName} doesn't exist - sync should have created it. Continuing...`);
+          return Promise.resolve();
+        }
+        logger.warn(`Could not add ${columnName} column to ${tableName}:`, err.message);
+        return Promise.resolve();
+      });
+      const tables = [
+        db.UniversityOutcome.getTableName(),
+        db.DepartmentOutcome.getTableName(),
+      ];
+      return tables.reduce(
+        (chain, tableName) =>
+          chain
+            .then(() => addDateColumn(tableName, "effectiveDate"))
+            .then(() => addDateColumn(tableName, "endDate")),
+        Promise.resolve()
+      );
+    })
+    .then(() => {
+      const departmentOutcomeTableName = db.DepartmentOutcome.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${departmentOutcomeTableName}
+        DROP COLUMN status
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("check that column/key exists") ||
+          err.message.includes("Can't DROP") ||
+          err.message.includes("doesn't exist") ||
+          err.message.includes("Unknown column")
+        )) {
+          logger.info("status column is not on department_outcomes, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not drop status column from department_outcomes:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const semesterTableName = db.Semester.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${semesterTableName}
+        ADD COLUMN canvasTermId INT NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("canvasTermId column already exists on semesters, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add canvasTermId column to semesters:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(async () => {
+      const assignmentTableName = db.Assignment.getTableName();
+      const courseTableName = db.course.getTableName();
+      const [foreignKeys] = await db.sequelize.query(`
+        SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = '${assignmentTableName}'
+          AND COLUMN_NAME = 'courseId'
+          AND REFERENCED_TABLE_NAME IS NOT NULL
+      `);
+      const courseForeignKey = foreignKeys[0];
+      if (courseForeignKey?.REFERENCED_TABLE_NAME === courseTableName) {
+        logger.info("assignments.courseId already references courses, skipping...");
+        return;
+      }
+      if (courseForeignKey?.CONSTRAINT_NAME) {
+        await db.sequelize.query(`
+          ALTER TABLE ${assignmentTableName}
+          DROP FOREIGN KEY ${courseForeignKey.CONSTRAINT_NAME}
+        `);
+      }
+      await db.sequelize.query(`
+        ALTER TABLE ${assignmentTableName}
+        ADD CONSTRAINT assignments_courseId_courses_fk
+        FOREIGN KEY (courseId) REFERENCES ${courseTableName}(id)
+      `);
+      logger.info("assignments.courseId now references courses");
+    })
+    .then(async () => {
+      const departmentOutcomeTable = db.DepartmentOutcome.getTableName();
+      const joinTable = db.DepartmentOutcomeUniversityOutcome.getTableName();
+      const [columns] = await db.sequelize.query(`
+        SELECT COLUMN_NAME
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = '${departmentOutcomeTable}'
+          AND COLUMN_NAME = 'universityOutcomeId'
+      `);
+      if (!columns.length) {
+        logger.info("department outcomes already use multiple university outcomes, skipping...");
+        return;
+      }
+
+      await db.sequelize.query(`
+        INSERT INTO ${joinTable} (departmentOutcomeId, universityOutcomeId, createdAt, updatedAt)
+        SELECT d.id, d.universityOutcomeId, NOW(), NOW()
+        FROM ${departmentOutcomeTable} d
+        WHERE d.universityOutcomeId IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM ${joinTable} j
+            WHERE j.departmentOutcomeId = d.id
+              AND j.universityOutcomeId = d.universityOutcomeId
+          )
+      `);
+
+      const [foreignKeys] = await db.sequelize.query(`
+        SELECT CONSTRAINT_NAME
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = '${departmentOutcomeTable}'
+          AND COLUMN_NAME = 'universityOutcomeId'
+          AND REFERENCED_TABLE_NAME IS NOT NULL
+      `);
+      for (const foreignKey of foreignKeys) {
+        await db.sequelize.query(`
+          ALTER TABLE ${departmentOutcomeTable}
+          DROP FOREIGN KEY ${foreignKey.CONSTRAINT_NAME}
+        `);
+      }
+      await db.sequelize.query(`
+        ALTER TABLE ${departmentOutcomeTable}
+        DROP COLUMN universityOutcomeId
+      `);
+      logger.info("Department outcomes can now be assigned to multiple university outcomes");
+    })
+    .then(() => {
+      const assignmentTableName = db.Assignment.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignmentTableName}
+        ADD COLUMN totalPoints DECIMAL(8,2) NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("totalPoints column already exists on assignments, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add totalPoints column to assignments:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const assessmentScoreTableName = db.AssessmentScore.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assessmentScoreTableName}
+        ADD COLUMN description VARCHAR(255) NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("description column already exists on assessment_scores, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add description column to assessment_scores:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const departmentTableName = db.Department.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${departmentTableName}
+        ADD COLUMN collegeId INTEGER NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("collegeId column already exists on departments, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add collegeId column to departments:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const universityTableName = db.University.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${universityTableName}
+        ADD COLUMN provostUserId INTEGER NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("provostUserId column already exists on universities, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add provostUserId column to universities:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const assignmentTableName = db.Assignment.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignmentTableName}
+        ADD COLUMN coreAssessment BOOLEAN NOT NULL DEFAULT FALSE
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("coreAssessment column already exists on assignments, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add coreAssessment column to assignments:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const assignmentTableName = db.Assignment.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${assignmentTableName}
+        ADD COLUMN universityOutcomeId INTEGER NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("universityOutcomeId column already exists on assignments, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add universityOutcomeId column to assignments:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const departmentTableName = db.Department.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${departmentTableName}
+        ADD COLUMN assessmentWeight INTEGER NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("assessmentWeight column already exists on departments, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add assessmentWeight column to departments:", err.message);
+        return Promise.resolve();
+      });
+    })
+    .then(() => {
+      const collegeTableName = db.College.getTableName();
+      return db.sequelize.query(`
+        ALTER TABLE ${collegeTableName}
+        ADD COLUMN assessmentWeight INTEGER NULL
+      `).catch((err) => {
+        if (err.message && (
+          err.message.includes("Duplicate column name") ||
+          err.message.includes("Duplicate column") ||
+          err.message.includes("already exists")
+        )) {
+          logger.info("assessmentWeight column already exists on colleges, skipping...");
+          return Promise.resolve();
+        }
+        logger.warn("Could not add assessmentWeight column to colleges:", err.message);
         return Promise.resolve();
       });
     })

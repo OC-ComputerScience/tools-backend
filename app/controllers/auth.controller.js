@@ -354,9 +354,9 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   logger.info('Logout request received');
-  
-  if (req.body === null) {
-    logger.warn('Logout attempt with null body');
+
+  if (req.body == null || !req.body.token) {
+    logger.warn('Logout attempt with no token');
     res.send({
       message: "User has already been successfully logged out!",
     });
@@ -365,50 +365,48 @@ exports.logout = async (req, res) => {
 
   let session = {};
 
-  logger.debug('Looking up session for logout');
-  await Session.findAll({ where: { token: req.body.token } })
-    .then((data) => {
-      if (data[0] !== undefined) {
-        session = data[0].dataValues;
-        logger.debug(`Session found for logout: ${session.email}`);
-      }
-    })
-    .catch((err) => {
-      logger.error(`Error retrieving session for logout: ${err.message}`);
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while retrieving sessions.",
-      });
-      return;
+  try {
+    logger.debug('Looking up session for logout');
+    const data = await Session.findAll({ where: { token: req.body.token } });
+    if (data[0] !== undefined) {
+      session = data[0].dataValues;
+      logger.debug(`Session found for logout: ${session.email}`);
+    }
+  } catch (err) {
+    logger.error(`Error retrieving session for logout: ${err.message}`);
+    res.status(500).send({
+      message: err.message || "Some error occurred while retrieving sessions.",
     });
+    return;
+  }
 
-  session.token = "";
-
-  if (session.id !== undefined) {
-    Session.update(session, { where: { id: session.id } })
-      .then((num) => {
-        if (num == 1) {
-          logger.info(`User logged out successfully: ${session.email}`);
-          res.send({
-            message: "User has been successfully logged out!",
-          });
-        } else {
-          logger.error('Failed to clear session token');
-          res.send({
-            message: `Error logging out user.`,
-          });
-        }
-      })
-      .catch((err) => {
-        logger.error(`Error during logout: ${err.message}`);
-        res.status(500).send({
-          message: "Error logging out user.",
-        });
-      });
-  } else {
+  if (session.id === undefined) {
     logger.warn('Logout attempt for already logged out user');
     res.send({
       message: "User has already been successfully logged out!",
+    });
+    return;
+  }
+
+  session.token = "";
+
+  try {
+    const num = await Session.update(session, { where: { id: session.id } });
+    if (num == 1) {
+      logger.info(`User logged out successfully: ${session.email}`);
+      res.send({
+        message: "User has been successfully logged out!",
+      });
+    } else {
+      logger.error('Failed to clear session token');
+      res.send({
+        message: `Error logging out user.`,
+      });
+    }
+  } catch (err) {
+    logger.error(`Error during logout: ${err.message}`);
+    res.status(500).send({
+      message: "Error logging out user.",
     });
   }
 };

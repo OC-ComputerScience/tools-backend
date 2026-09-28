@@ -59,6 +59,9 @@ exports.create = (req, res) => {
     courseNumber: req.body.courseNumber,
     courseSection: req.body.courseSection,
     courseDescription: req.body.courseDescription || null,
+    accountId: req.body.accountId || null,
+    sectionCode: req.body.sectionCode || null,
+    canvasSISCourseID: req.body.canvasSISCourseID || null,
   };
 
   logger.debug(`Creating section: ${section.courseNumber}-${section.courseSection}`);
@@ -83,6 +86,9 @@ exports.findAll = (req, res) => {
   let condition = {};
   if (semesterId) {
     condition.semesterId = semesterId;
+  }
+  if (req.query.courseNumber) {
+    condition.courseNumber = req.query.courseNumber;
   }
 
   logger.debug(`Fetching sections with condition: ${JSON.stringify(condition)}`);

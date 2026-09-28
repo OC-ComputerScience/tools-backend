@@ -14,6 +14,10 @@ const Semester = SequelizeInstance.define("semester", {
     type: Sequelize.DATE,
     allowNull: false,
   },
+  canvasTermId: {
+    type: Sequelize.INTEGER,
+    allowNull: true,
+  },
 });
 
 export default Semester;

@@ -18,6 +18,14 @@ import MenuOption from "./menuOption.model.js";
 import RoleMenuOption from "./roleMenuOption.model.js";
 import University from "./university.model.js";
 import UniversityCourse from "./universityCourse.model.js";
+import UniversityOutcome from "./universityOutcome.model.js";
+import Department from "./department.model.js";
+import College from "./college.model.js";
+import DepartmentOutcome from "./departmentOutcome.model.js";
+import DepartmentOutcomeUniversityOutcome from "./departmentOutcomeUniversityOutcome.model.js";
+import Assignment from "./assignment.model.js";
+import AssignmentGrade from "./assignmentGrade.model.js";
+import AssessmentScore from "./assessmentScore.model.js";
 import UniversityTranscript from "./universityTranscript.model.js";
 import TranscriptCourse from "./transcriptCourse.model.js";
 import Semester from "./semester.model.js";
@@ -44,6 +52,14 @@ db.menuOption = MenuOption;
 db.roleMenuOption = RoleMenuOption;
 db.University = University;
 db.UniversityCourse = UniversityCourse;
+db.UniversityOutcome = UniversityOutcome;
+db.Department = Department;
+db.College = College;
+db.DepartmentOutcome = DepartmentOutcome;
+db.DepartmentOutcomeUniversityOutcome = DepartmentOutcomeUniversityOutcome;
+db.Assignment = Assignment;
+db.AssignmentGrade = AssignmentGrade;
+db.AssessmentScore = AssessmentScore;
 db.UniversityTranscript = UniversityTranscript;
 db.TranscriptCourse = TranscriptCourse;
 db.Semester = Semester;
@@ -161,6 +177,9 @@ db.user.hasMany(db.userSection, { as: "userSections", foreignKey: "userId" });
 db.section.hasMany(db.userSection, { as: "sectionUsers", foreignKey: "sectionId" });
 // Define relationships
 db.University.hasMany(db.UniversityCourse, { foreignKey: 'universityId' });
+db.University.hasMany(db.UniversityOutcome, { foreignKey: 'universityId' });
+db.University.hasMany(db.Department, { foreignKey: 'universityId' });
+db.University.hasMany(db.College, { foreignKey: 'universityId' });
 db.University.hasMany(db.UniversityTranscript, { foreignKey: 'universityId' });
 
 db.course.hasMany(db.TranscriptCourse, { foreignKey: 'courseId', as: 'transcriptCourses' });
@@ -171,6 +190,45 @@ db.TranscriptCourse.belongsTo(db.course, { foreignKey: 'courseId', as: 'course' 
 db.TranscriptCourse.belongsTo(db.Semester, { foreignKey: 'semesterId' });
 
 db.UniversityCourse.belongsTo(db.University, { foreignKey: 'universityId' });
+db.UniversityOutcome.belongsTo(db.University, { foreignKey: 'universityId' });
+db.Department.belongsTo(db.University, { foreignKey: 'universityId' });
+db.College.belongsTo(db.University, { foreignKey: 'universityId' });
+db.Department.belongsTo(db.College, { foreignKey: 'collegeId' });
+db.College.hasMany(db.Department, { foreignKey: 'collegeId' });
+db.University.belongsTo(db.user, { foreignKey: 'provostUserId', as: 'provost' });
+db.user.hasMany(db.University, { foreignKey: 'provostUserId', as: 'provostUniversities' });
+db.College.belongsTo(db.user, { foreignKey: 'deanUserId', as: 'dean' });
+db.user.hasMany(db.College, { foreignKey: 'deanUserId', as: 'deanColleges' });
+db.Department.belongsTo(db.user, { foreignKey: 'chairUserId', as: 'chair' });
+db.user.hasMany(db.Department, { foreignKey: 'chairUserId', as: 'chairedDepartments' });
+db.Department.hasMany(db.DepartmentOutcome, { foreignKey: 'departmentId' });
+db.DepartmentOutcome.belongsTo(db.Department, { foreignKey: 'departmentId' });
+db.DepartmentOutcome.belongsToMany(db.UniversityOutcome, {
+  through: db.DepartmentOutcomeUniversityOutcome,
+  as: "universityOutcomes",
+  foreignKey: "departmentOutcomeId",
+  otherKey: "universityOutcomeId",
+  onDelete: "CASCADE",
+});
+db.UniversityOutcome.belongsToMany(db.DepartmentOutcome, {
+  through: db.DepartmentOutcomeUniversityOutcome,
+  as: "departmentOutcomes",
+  foreignKey: "universityOutcomeId",
+  otherKey: "departmentOutcomeId",
+  onDelete: "CASCADE",
+});
+db.Department.hasMany(db.Assignment, { foreignKey: 'departmentId' });
+db.Assignment.belongsTo(db.Department, { foreignKey: 'departmentId' });
+db.course.hasMany(db.Assignment, { foreignKey: 'courseId', as: 'assignments' });
+db.Assignment.belongsTo(db.course, { foreignKey: 'courseId', as: 'course' });
+db.DepartmentOutcome.hasMany(db.Assignment, { foreignKey: 'departmentOutcomeId' });
+db.Assignment.belongsTo(db.DepartmentOutcome, { foreignKey: 'departmentOutcomeId' });
+db.UniversityOutcome.hasMany(db.Assignment, { foreignKey: 'universityOutcomeId' });
+db.Assignment.belongsTo(db.UniversityOutcome, { foreignKey: 'universityOutcomeId' });
+db.section.hasMany(db.AssignmentGrade, { foreignKey: 'sectionId', as: 'assignmentGrades' });
+db.AssignmentGrade.belongsTo(db.section, { foreignKey: 'sectionId', as: 'section' });
+db.Assignment.hasMany(db.AssignmentGrade, { foreignKey: 'assignmentId', as: 'grades' });
+db.AssignmentGrade.belongsTo(db.Assignment, { foreignKey: 'assignmentId', as: 'assignment' });
 db.UniversityCourse.belongsTo(db.course, { foreignKey: 'courseId', as: 'course' });
 db.UniversityCourse.hasMany(db.TranscriptCourse, { foreignKey: 'universityCourseId' });
 

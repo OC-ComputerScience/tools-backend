@@ -36,8 +36,8 @@ exports.modules = async (req, res) => {
       return res.send(htmlResponse);
     }
 
-    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com');
-    const apiToken = process.env.CANVAS_API_TOKEN;
+    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com').trim().replace(/\/+$/, '');
+    const apiToken = (process.env.CANVAS_API_TOKEN || '').trim();
 
     // Only log in non-production environments
     if (process.env.NODE_ENV !== 'production') {
@@ -62,7 +62,8 @@ exports.modules = async (req, res) => {
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'OC-Tools'
         },
         signal: AbortSignal.timeout(12000) // 12 second timeout
       });
@@ -156,8 +157,8 @@ exports.modules2 = async (req, res) => {
   }
 
   try {
-    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com');
-    const apiToken = process.env.CANVAS_API_TOKEN;
+    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com').trim().replace(/\/+$/, '');
+    const apiToken = (process.env.CANVAS_API_TOKEN || '').trim();
 
     if (!apiToken) {
       return res.status(500).json({ error: 'Canvas API token not configured' });
@@ -170,7 +171,8 @@ exports.modules2 = async (req, res) => {
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'OC-Tools'
         },
         signal: AbortSignal.timeout(12000)
       });
@@ -230,8 +232,8 @@ exports.modules2Json = async (req, res) => {
   }
 
   try {
-    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com');
-    const apiToken = process.env.CANVAS_API_TOKEN;
+    const canvasDomain = (process.env.CANVAS_DOMAIN || 'https://oklahomachristian.beta.instructure.com').trim().replace(/\/+$/, '');
+    const apiToken = (process.env.CANVAS_API_TOKEN || '').trim();
 
     if (!apiToken) {
       return res.status(500).json({ error: 'Canvas API token not configured' });
@@ -244,7 +246,8 @@ exports.modules2Json = async (req, res) => {
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'OC-Tools'
         },
         signal: AbortSignal.timeout(12000)
       });
