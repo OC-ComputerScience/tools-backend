@@ -2,16 +2,25 @@ import db from "../models/index.js";
 import logger from "../config/logger.js";
 
 const University = db.University;
+const User = db.user;
 
 const exports = {};
+
+const includeRelations = [
+  { model: User, as: "provost", attributes: ["id", "fName", "lName", "email"] },
+];
 
 // Create a new University
 exports.create = async (req, res) => {
   try {
     logger.debug(`Creating university with data: ${JSON.stringify(req.body)}`);
-    const university = await University.create(req.body);
+    const university = await University.create({
+      ...req.body,
+      provostUserId: req.body.provostUserId || null,
+    });
+    const created = await University.findByPk(university.id, { include: includeRelations });
     logger.info(`University created successfully: ${university.id}`);
-    res.status(201).json(university);
+    res.status(201).json(created);
   } catch (error) {
     logger.error(`Error creating university: ${error.message}`);
     res.status(500).json({ message: error.message });
@@ -22,7 +31,7 @@ exports.create = async (req, res) => {
 exports.findAll = async (req, res) => {
   try {
     logger.debug("Fetching all universities");
-    const universities = await University.findAll();
+    const universities = await University.findAll({ include: includeRelations });
     logger.info(`Retrieved ${universities.length} universities`);
     res.json(universities);
   } catch (error) {
@@ -36,7 +45,7 @@ exports.findOne = async (req, res) => {
   const id = req.params.id;
   try {
     logger.debug(`Finding university with id: ${id}`);
-    const university = await University.findByPk(id);
+    const university = await University.findByPk(id, { include: includeRelations });
     if (!university) {
       logger.warn(`University not found with id: ${id}`);
       return res.status(404).json({ message: "University not found" });
@@ -59,9 +68,13 @@ exports.update = async (req, res) => {
       logger.warn(`University not found with id: ${id}`);
       return res.status(404).json({ message: "University not found" });
     }
-    await university.update(req.body);
+    await university.update({
+      ...req.body,
+      provostUserId: req.body.provostUserId || null,
+    });
+    const updated = await University.findByPk(id, { include: includeRelations });
     logger.info(`University ${id} updated successfully`);
-    res.json(university);
+    res.json(updated);
   } catch (error) {
     logger.error(`Error updating university ${id}: ${error.message}`);
     res.status(500).json({ message: error.message });
