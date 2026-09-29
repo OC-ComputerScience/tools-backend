@@ -204,14 +204,14 @@ db.user.hasMany(db.Department, { foreignKey: 'chairUserId', as: 'chairedDepartme
 db.Department.hasMany(db.DepartmentOutcome, { foreignKey: 'departmentId' });
 db.DepartmentOutcome.belongsTo(db.Department, { foreignKey: 'departmentId' });
 db.DepartmentOutcome.belongsToMany(db.UniversityOutcome, {
-  through: db.DepartmentOutcomeUniversityOutcome,
+  through: { model: db.DepartmentOutcomeUniversityOutcome, unique: false },
   as: "universityOutcomes",
   foreignKey: "departmentOutcomeId",
   otherKey: "universityOutcomeId",
   onDelete: "CASCADE",
 });
 db.UniversityOutcome.belongsToMany(db.DepartmentOutcome, {
-  through: db.DepartmentOutcomeUniversityOutcome,
+  through: { model: db.DepartmentOutcomeUniversityOutcome, unique: false },
   as: "departmentOutcomes",
   foreignKey: "universityOutcomeId",
   otherKey: "departmentOutcomeId",
