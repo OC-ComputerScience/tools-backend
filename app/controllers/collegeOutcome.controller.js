@@ -50,15 +50,21 @@ const weightedAverage = (rows) => {
   return Math.round(weighted * 100) / 100;
 };
 
+const semesterIdsFromQuery = (value) =>
+  String(value || "")
+    .split(",")
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
 exports.findForCollegeSemester = async (req, res) => {
   const collegeId = req.query.collegeId;
-  const semesterId = req.query.semesterId;
-  if (!collegeId || !semesterId) {
+  const semesterIds = semesterIdsFromQuery(req.query.semesterId);
+  if (!collegeId || !semesterIds.length) {
     return res.status(400).json({ message: "collegeId and semesterId are required" });
   }
 
   try {
-    logger.debug(`College outcomes for college ${collegeId}, semester ${semesterId}`);
+    logger.debug(`College outcomes for college ${collegeId}, semesters ${semesterIds.join(",")}`);
 
     const college = await College.findByPk(collegeId);
     if (!college) {
@@ -119,7 +125,7 @@ exports.findForCollegeSemester = async (req, res) => {
     );
     const sections = courseNumbers.size
       ? await Section.findAll({
-          where: { semesterId },
+          where: { semesterId: { [Op.in]: semesterIds } },
           attributes: ["id", "courseNumber"],
         })
       : [];

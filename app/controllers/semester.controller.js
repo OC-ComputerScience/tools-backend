@@ -45,7 +45,12 @@ exports.create = (req, res) => {
 exports.findAll = (req, res) => {
   logger.debug("Fetching all semesters");
 
-  Semester.findAll()
+  Semester.findAll({
+    order: [
+      ["startDate", "DESC"],
+      ["endDate", "DESC"],
+    ],
+  })
     .then((data) => {
       logger.info(`Retrieved ${data.length} semesters`);
       res.send(data);
