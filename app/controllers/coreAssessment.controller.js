@@ -2,6 +2,7 @@ import db from "../models/index.js";
 import logger from "../config/logger.js";
 
 const Department = db.Department;
+const Semester = db.Semester;
 const UniversityOutcome = db.UniversityOutcome;
 const Assignment = db.Assignment;
 const Course = db.course;
@@ -29,15 +30,21 @@ const assessmentScoreForGrade = (gradePercentage, scale) => {
   return match ? Number(match.score) : null;
 };
 
+const semesterIdsFromQuery = (value) =>
+  String(value || "")
+    .split(",")
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
 exports.findForUniversitySemester = async (req, res) => {
   const universityId = req.query.universityId;
-  const semesterId = req.query.semesterId;
-  if (!universityId || !semesterId) {
+  const semesterIds = semesterIdsFromQuery(req.query.semesterId);
+  if (!universityId || !semesterIds.length) {
     return res.status(400).json({ message: "universityId and semesterId are required" });
   }
 
   try {
-    logger.debug(`Core assessment for university ${universityId}, semester ${semesterId}`);
+    logger.debug(`Core assessment for university ${universityId}, semesters ${semesterIds.join(",")}`);
 
     const departments = await Department.findAll({
       where: { universityId },
@@ -73,8 +80,9 @@ exports.findForUniversitySemester = async (req, res) => {
     );
     const sections = courseNumbers.size
       ? await Section.findAll({
-          where: { semesterId },
-          attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
+          where: { semesterId: { [Op.in]: semesterIds } },
+          attributes: ["id", "courseNumber", "courseSection", "courseDescription", "semesterId"],
+          include: [{ model: Semester, as: "semester", attributes: ["id", "name", "startDate"] }],
           order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
         })
       : [];
@@ -169,6 +177,8 @@ exports.findForUniversitySemester = async (req, res) => {
             courseNumber: assignment.course?.number || "",
             courseSection: "",
             courseDescription: "",
+            semesterName: "",
+            semesterStartDate: "",
             department: assignment.department
               ? `${assignment.department.code} - ${assignment.department.name}`
               : "",
@@ -186,6 +196,8 @@ exports.findForUniversitySemester = async (req, res) => {
             courseNumber: section.courseNumber,
             courseSection: section.courseSection,
             courseDescription: section.courseDescription,
+            semesterName: section.semester?.name || "",
+            semesterStartDate: section.semester?.startDate || "",
             department: assignment.department
               ? `${assignment.department.code} - ${assignment.department.name}`
               : "",
@@ -196,6 +208,12 @@ exports.findForUniversitySemester = async (req, res) => {
         }
       }
       outcomeAssignments.sort((a, b) => {
+        const dateKey = (value) => {
+          const match = String(value || "").match(/(\d{4})-(\d{2})-(\d{2})/);
+          return match ? `${match[1]}${match[2]}${match[3]}` : "";
+        };
+        const dateCompare = dateKey(b.semesterStartDate).localeCompare(dateKey(a.semesterStartDate));
+        if (dateCompare) return dateCompare;
         const sectionCompare = `${a.courseNumber}-${a.courseSection}`.localeCompare(
           `${b.courseNumber}-${b.courseSection}`
         );

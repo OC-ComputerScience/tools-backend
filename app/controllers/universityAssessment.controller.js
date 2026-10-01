@@ -58,15 +58,21 @@ const includedGradeCount = (rows) =>
     return sum + row.gradeCount;
   }, 0);
 
+const semesterIdsFromQuery = (value) =>
+  String(value || "")
+    .split(",")
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
 exports.findForUniversitySemester = async (req, res) => {
   const universityId = req.query.universityId;
-  const semesterId = req.query.semesterId;
-  if (!universityId || !semesterId) {
+  const semesterIds = semesterIdsFromQuery(req.query.semesterId);
+  if (!universityId || !semesterIds.length) {
     return res.status(400).json({ message: "universityId and semesterId are required" });
   }
 
   try {
-    logger.debug(`University assessment for university ${universityId}, semester ${semesterId}`);
+    logger.debug(`University assessment for university ${universityId}, semesters ${semesterIds.join(",")}`);
 
     const university = await University.findByPk(universityId);
     if (!university) {
@@ -135,7 +141,7 @@ exports.findForUniversitySemester = async (req, res) => {
     );
     const sections = courseNumbers.size
       ? await Section.findAll({
-          where: { semesterId },
+          where: { semesterId: { [Op.in]: semesterIds } },
           attributes: ["id", "courseNumber"],
         })
       : [];
