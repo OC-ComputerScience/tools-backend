@@ -2,6 +2,7 @@ import db from "../models/index.js";
 import logger from "../config/logger.js";
 
 const DepartmentOutcome = db.DepartmentOutcome;
+const Semester = db.Semester;
 const Assignment = db.Assignment;
 const Course = db.course;
 const Section = db.section;
@@ -28,15 +29,21 @@ const assessmentScoreForGrade = (gradePercentage, scale) => {
   return match ? Number(match.score) : null;
 };
 
+const semesterIdsFromQuery = (value) =>
+  String(value || "")
+    .split(",")
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
 exports.findForDepartmentSemester = async (req, res) => {
   const departmentId = req.query.departmentId;
-  const semesterId = req.query.semesterId;
-  if (!departmentId || !semesterId) {
+  const semesterIds = semesterIdsFromQuery(req.query.semesterId);
+  if (!departmentId || !semesterIds.length) {
     return res.status(400).json({ message: "departmentId and semesterId are required" });
   }
 
   try {
-    logger.debug(`Department assessment for department ${departmentId}, semester ${semesterId}`);
+    logger.debug(`Department assessment for department ${departmentId}, semesters ${semesterIds.join(",")}`);
 
     const outcomes = await DepartmentOutcome.findAll({
       where: { departmentId },
@@ -60,8 +67,9 @@ exports.findForDepartmentSemester = async (req, res) => {
     );
     const sections = courseNumbers.size
       ? await Section.findAll({
-          where: { semesterId },
-          attributes: ["id", "courseNumber", "courseSection", "courseDescription"],
+          where: { semesterId: { [Op.in]: semesterIds } },
+          attributes: ["id", "courseNumber", "courseSection", "courseDescription", "semesterId"],
+          include: [{ model: Semester, as: "semester", attributes: ["id", "name"] }],
           order: [["courseNumber", "ASC"], ["courseSection", "ASC"]],
         })
       : [];
@@ -156,6 +164,7 @@ exports.findForDepartmentSemester = async (req, res) => {
             courseNumber: assignment.course?.number || "",
             courseSection: "",
             courseDescription: "",
+            semesterName: "",
             averageScore: null,
             gradeCount: 0,
             ...distributionFields([]),
@@ -170,6 +179,7 @@ exports.findForDepartmentSemester = async (req, res) => {
             courseNumber: section.courseNumber,
             courseSection: section.courseSection,
             courseDescription: section.courseDescription,
+            semesterName: section.semester?.name || "",
             averageScore: average(sectionScores),
             gradeCount: sectionScores.length,
             ...distributionFields(sectionScores),
@@ -177,8 +187,8 @@ exports.findForDepartmentSemester = async (req, res) => {
         }
       }
       outcomeAssignments.sort((a, b) => {
-        const sectionCompare = `${a.courseNumber}-${a.courseSection}`.localeCompare(
-          `${b.courseNumber}-${b.courseSection}`
+        const sectionCompare = `${a.semesterName} ${a.courseNumber}-${a.courseSection}`.localeCompare(
+          `${b.semesterName} ${b.courseNumber}-${b.courseSection}`
         );
         if (sectionCompare) return sectionCompare;
         return String(a.name || "").localeCompare(String(b.name || ""));
