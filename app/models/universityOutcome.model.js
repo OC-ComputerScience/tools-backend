@@ -30,7 +30,7 @@ const UniversityOutcome = SequelizeInstance.define("universityOutcome", {
   },
   effectiveDate: {
     type: Sequelize.DATEONLY,
-    allowNull: true,
+    allowNull: false,
   },
   endDate: {
     type: Sequelize.DATEONLY,
