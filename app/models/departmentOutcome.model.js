@@ -21,7 +21,7 @@ const DepartmentOutcome = SequelizeInstance.define("departmentOutcome", {
   },
   description: {
     type: Sequelize.TEXT,
-    allowNull: true,
+    allowNull: false,
   },
   level: {
     type: Sequelize.ENUM("undergraduate", "graduate"),

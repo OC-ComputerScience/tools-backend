@@ -21,11 +21,11 @@ const Assignment = SequelizeInstance.define("assignment", {
   },
   totalPoints: {
     type: Sequelize.DECIMAL(8, 2),
-    allowNull: true,
+    allowNull: false,
   },
   description: {
     type: Sequelize.TEXT,
-    allowNull: true,
+    allowNull: false,
   },
   departmentOutcomeId: {
     type: Sequelize.INTEGER,
